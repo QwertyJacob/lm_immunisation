@@ -1,0 +1,345 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{tikz-cd}
+
+% Typography
+\usepackage{libertinus}
+
+% Color + section styling
+\usepackage[dvipsnames]{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+
+% Lists
+\setlist[itemize]{topsep=2pt,itemsep=1pt,parsep=0pt,partopsep=0pt}
+
+% Lists
+\setlist[itemize]{topsep=2pt,itemsep=1pt,parsep=0pt,partopsep=0pt}
+
+% Verbosity toggle (change only this flag)
+\usepackage{environ}
+\newif\ifverbose
+\verbosefalse % set to \verbosetrue for the verbose version
+
+% Use these to conditionally include content
+\NewEnviron{verbose}{\ifverbose\BODY\fi}
+\NewEnviron{succinct}{\ifverbose\else\BODY\fi}
+
+
+% Footer styling (colored bar + page number)
+\usepackage{fancyhdr}
+
+% Clickable links (blue, no boxes)
+\usepackage[colorlinks=true,linkcolor=PrismBlue,urlcolor=PrismBlue,citecolor=PrismBlue]{hyperref}
+
+\definecolor{PrismBlue}{HTML}{1F5FBF}
+\definecolor{PrismGreen}{HTML}{1E8E5A}
+
+\titleformat{\section}{\Large\bfseries\color{PrismGreen}}{}{0pt}{}
+\titleformat{\subsection}{\large\bfseries\color{PrismGreen}}{}{0pt}{}
+\titleformat{\paragraph}[runin]{\bfseries\color{PrismGreen}}{}{0pt}{}[]
+
+% Spacing: {left}{before}{after}
+\titlespacing*{\section}{0pt}{1\baselineskip}{0pt}
+\titlespacing*{\subsection}{0pt}{0.1\baselineskip}{-5pt}
+\titlespacing*{\paragraph}{0pt}{0.1\baselineskip}{0.6em}
+
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrule}{\hbox to\headwidth{\color{PrismGreen}\leaders\hrule height 2pt\hfill}}
+\fancyfoot[C]{\colorbox{PrismGreen!12}{\strut\textcolor{PrismGreen}{\thepage}}}
+
+
+% Colored bar above footnotes
+\makeatletter
+\renewcommand{\footnoterule}{%
+  \kern-3pt\color{PrismGreen}\hrule width 0.35\linewidth height 1.2pt\kern 2.6pt
+}
+\makeatother
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4\baselineskip}
+
+\begin{document}
+\section*{A Tutorial on Language Model Immunisation}
+\textit{Jesús F. Cevallos-Moreno, University of Insubria}
+\vspace{15pt}
+
+Open-weight language models (LMs) are ubiquitous. Industry, academia, and practitioners around the world are equipping their AI infrastructures with customised versions of these models. The democratisation of open weights, however, comes at the cost of an expanded attack surface: fine-tuning and representation-engineering white-box attacks can easily erase safety policies learned by aligned models. Recently, researchers have proposed \href{ https://arxiv.org/abs/2402.16382}{\textit{Language Model Immunisation}}, a family of techniques aimed at creating open-weight language models that resist the harmful side effects of fine-tuning.
+
+\paragraph*{The scope of this tutorial} is precisely LM immunisation: a proactive safety procedure that injects structural resistance into open-weight language models against potentially harmful fine-tuning in the future. Ideally, LM immunisation introduces a resilient dynamic that raises the cost of convergence toward harmful policies beyond that of training a model from scratch. If feasible, LM immunisation is of significant importance for the field of machine learning safety and could become a north star for large, medium, and small LM producers committed to responsible model development.
+
+\paragraph*{The learning objectives} of this tutorial include understanding:
+\begin{itemize}
+    \item the formal requirements of a realistic and well-designed LM immunisation recipe;
+    \item the state-of-the-art strategies developed by the research community;
+    \item how to interpret and relate these strategies through the lens of mechanistic interpretability;
+    \item the current open challenges in the field and promising directions for addressing them.
+\end{itemize}
+
+By the end of this tutorial, participants will gain a comprehensive mechanistic overview of the current LM immunisation research landscape, a clear understanding of existing achievements and remaining gaps, access to open resources, and a principled framework for testing their own hypotheses to advance the field.
+
+\paragraph*{Intended audience} for this tutorial includes anyone interested in \textbf{robust safety mechanisms for open-weight language models}. In addition to researchers, engineers and practitioners releasing open-weight models may find particular value in pre-release strategies that enhance structural resilience against the harmful side effects of future fine-tuning. Researchers working on \textbf{mechanistic interpretability} and \textbf{meta-learning} should also find this tutorial relevant to their interests and may identify clear opportunities for contribution.
+
+\paragraph*{The presenter,} \href{https://github.com/QwertyJacob}{Jesús F. Cevallos-Moreno}, is a postdoctoral researcher at the Dipartimento di Scienze Teoriche e Applicate (\href{https://archivio.uninsubria.it/siti-tematici-o-federati/siti-dei-dipartimenti/dipartimento-di-scienze-teoriche-e-applicate-dista}{DISTA}),  University of Insubria, Varese, Italy. His research focuses on human-centric language models and algorithmic inductive biases for cybersecurity applications. His expertise in language model immunisation stems from the \href{https://www.techrxiv.org/users/925680/articles/1301297-ethical-treatment-of-language-models-against-harmful-inference-time-interventions}{\textit{E.T.} project}, a research path devoted to immunising language models against one of the most cost-effective forms of harmful model modification: representation engineering attacks.
+
+Since 2022, Cevallos-Moreno has held a lecturer position in the undergraduate probability and statistics course for computer science, and has previously served as a teaching assistant for graduate-level advanced programming courses at Politecnico di Milano. He works under the supervision of Professor \href{http://www.dista.uninsubria.it/~alessandra.rizzardi/}{Alessandra Rizzardi} within the  Research Group directed by Professors \href{https://www.dicom.uninsubria.it/~sabrina.sicari/}{Sabrina Sicari} and \href{https://www.dicom.uninsubria.it/~alberto.coenporisini/}{Alberto Coen-Porisini}.
+
+\newpage
+\section*{Specific content overview}
+
+This tutorial is divided into five parts. After motivating and specifying the problem statement in the introductory part, three core parts explore different strategies for addressing the problem from a mechanistic perspective and evidence their relationships, strengths, and limitations. The final part is then dedicated to identifying open challenges with a realistic solution horizon and the most promising strategies to address them. The tutorial should have a 10-minute pause after the second or third part. Note that every part of the exposition could be adapted to reduce the full tutorial time span if necessary.
+
+\paragraph*{Introduction: Motivation and problem statement} (30 minutes)
+\begin{itemize}
+  \item The \textit{Dual-Use Dilemma}, the \textit{Vulnerability Argument}, and the \href{https://arxiv.org/abs/2506.03850}{Vulnerability universality}.
+  \begin{verbose}
+      \begin{itemize}
+        \item The evolution from access restrictions to structural resistance.
+        \item \textbf{The Vulnerability Argument:} If safety guards can be easily removed, the model is fundamentally unsafe.
+        \item Historical context: From meta-learned task blocking in BERT-style models (MLAC) to open-weight LLMs.
+        \item For the vulnerability universality, we will use the "Delving into Transferable Adversarial Examples" in the "other" folder.
+    \end{itemize}
+  \end{verbose}
+  
+  \item Mechanistic efects: \href{https://arxiv.org/abs/2406.05946}{\textit{Shallow} Safety Alignment} and the concept of \href{https://arxiv.org/abs/2406.04313}{\textit{Harmful Embedding Drift}} (HED).
+  \begin{verbose}
+      \begin{itemize}
+        \item \textbf{Concept:} Alignment typically adapts the generative distribution primarily over the first few tokens (the ``safety shortcut'').
+        \item \textbf{Interpretability insight:} Per-token KL divergence analysis showing most of the ``KL budget'' is spent on initial refusal prefixes (e.g., ``I cannot fulfill\dots'').
+        \item Vulnerability to \textbf{harmful embedding drift}: fine-tuning on user data causes hidden embeddings to drift from safe states.
+      \end{itemize}
+  \end{verbose}
+
+  \item From Harmful Supervised Fine-Tuning (SFT) to Harmful-Reinforcement Learning (RL).
+      \begin{verbose}
+          \begin{itemize}
+            \item Bypassing alignment with as few as 10--100 samples.
+            \item Mechanistic view: fine-tuning perturbs safety-critical low-rank subspaces.
+            \item {Superiority of RL:} RL surpasses SFT's Pareto frontier, breaking alignment more effectively while preserving reasoning capabilities for complex harmful tasks.
+            \item {Interpretability insight:} RL improves metrics by reducing response entropy.
+            \item {Gradient Bound Theorem:}
+            \[
+              \lVert\nabla_{\theta}J(\theta)\rVert\le C\sqrt{\overline{H(\pi_{\theta})}}.
+            \]
+          \end{itemize}
+      \end{verbose}
+  
+
+  \item The \href{https://arxiv.org/abs/2402.16382}{four pillars of immunisation}: Resistance, Stability, Generalisation and Trainability. %(10 mins)
+  \begin{verbose}
+      \begin{itemize}
+        \item \textbf{Resistance:} weak vs. strong resistance based on the attacker's compute budget.
+        \item \textbf{Stability:} retaining general language modeling capability.
+        \item \textbf{Generalization:} defense against out-of-distribution (OOD) attack datasets.
+        \item \textbf{Trainability:} maintaining utility for benign downstream fine-tuning.
+      \end{itemize}
+  \end{verbose}
+  
+\end{itemize}
+
+\paragraph*{Part 1: Weight-Space Resilience and Adversarial Meta-Learning }(30 minutes)
+\begin{itemize}
+  \item Mechanistic goal: Producing model weights that inhabits the \href{https://arxiv.org/abs/2506.03850 }{\textit{safety basin}} in the loss landscape. %characterized by curvature/flatness that impedes movement toward harmful tasks.
+
+  \item {Techniques: from \href{https://arxiv.org/abs/2211.14946}{bi-level optimisation}, \href{https://arxiv.org/abs/2506.15606}{Low-Rank Extrapolation}, \href{https://openreview.net/forum?id=uitj69FqD5}{Hessian Robustness}}
+  \begin{verbose}
+    \begin{itemize}
+      \item \textbf{MLAC (Meta-Learned Adversarial Censoring):} the progenitor technique; uses bi-level optimisation where the outer loop maximises the loss of an inner-loop adversary.
+      \item \textbf{TAR (Tampering Attack Resistance):} modernises MLAC for LLMs using \textbf{entropy loss} instead of cross-entropy in the outer loop to prevent the adversary from ``quickly recovering'' at later steps.
+      \item \textbf{Equation:}
+      \[
+        \min_{\theta}\; \lambda_{\mathrm{TR}}\, \mathbb{E}_{\text{attack}\sim\mathcal{A}_{\text{train}}}
+        \Big[\mathcal{L}_{\mathrm{TR}}(\text{attack}(\theta);\mathcal{D}_{\mathrm{TR}})\Big]
+        + \lambda_{\text{retain}}\, \mathcal{L}_{\text{retain}}(\theta;\mathcal{D}_{\text{retain}}).
+      \]
+      \item \textbf{LoX (Low-Rank Extrapolation):} a training-free evolution that identifies safety-critical low-rank subspaces through SVD and extrapolates them to move parameters into a flatter, less perturbation-sensitive zone.
+    \end{itemize}
+  \end{verbose}
+
+  \item {Visualising unlearning resilience and the Safety loss landscape.}
+  \begin{verbose}
+    \begin{itemize}
+      \item \textbf{Task vector analysis:} visualizing unlearning resilience as preserving the ``unlearning direction'' ($\tau_{u}$) against the ``fine-tuning direction'' ($\tau_{ft}$), keeping them near-orthogonal rather than opposite.
+      \item \textbf{Safety landscape visualisation :} showing how immunisation moves the model out of a ``narrow valley'' of safety into a robust ``flat zone''.
+    \end{itemize}
+  \end{verbose}
+
+  \item {Limitations and sensitivity to out-of-distribution attacks.} 
+  \begin{verbose}
+      Pure weight-space methods can be sensitive to out-of-distribution learning rates; if the attacker's budget exceeds the simulated inner-loop depth (e.g., $K=64$), the defence may plateau.
+  \end{verbose}
+  
+\end{itemize}
+
+\paragraph*{Part 2: Representation Engineering and Residual Stream Intervention} (30 minutes)
+\begin{itemize}
+  \item Mechanistic Goal: Crafting an \href{https://openreview.net/forum?id=sfz57tKe5E}{invariant residual stream}.
+  \begin{verbose}
+      Ensuring the residual stream ($h_i$) remains invariant to adversarial perturbations, neutralising ``embedding drift'' before it propagates across layers.
+  \end{verbose}
+  
+  \item {Techniques: \href{https://openreview.net/forum?id=tTPHgb0EtV}{gradient attenuation}, representation \href{https://openreview.net/forum?id=eP9auEJqFg&referrer=%5Bthe%20profile%20of%20Domenic%20Rosati%5D(%2Fprofile%3Fid%3D~Domenic_Rosati2)}{noising}, \href{https://arxiv.org/html/2406.04313v2}{rerouting}, and \href{https://arxiv.org/abs/2410.09760}{vaccination}.}
+  \begin{verbose}
+    \begin{itemize}
+      \item \textbf{Vaccine:} introduces perturbation-aware alignment, adding artificial noise to embeddings during alignment to create resistance to HED (harmful embedding drift).
+      \item \textbf{Optimal perturbation equation:}
+      \[
+        \epsilon^{*}_{\ell,t} = \rho\, \frac{\nabla_{e_{\ell,t}}\mathcal{L}_{w_t}(e_{\ell,t})}{\left\lVert\nabla\mathcal{L}_{w_t}(e_{1,t},\dots,e_{L,t})\right\rVert}.
+      \]
+      \item \textbf{Targeted Vaccine (T-Vaccine):} improves memory efficiency by using \textbf{harmful gradient norms} to identify and selectively perturb only ``safety-critical'' layers.
+      \item \textbf{Circuit breakers:} uses \textbf{representation rerouting (RR)} to map internal representations of harmful processes to an orthogonal space, effectively short-circuiting generation.
+    \end{itemize}
+  \end{verbose}
+
+  \item HED Analysis, \href{https://openreview.net/forum?id=sfz57tKe5E}{Negative Log-Likelihood}, and cosine similarity probes.
+  \begin{verbose}
+    \begin{itemize}
+      \item \textbf{HED analysis:} using t-SNE to visualise how harmful fine-tuning drags clean embeddings into ``malicious clusters'' and how immunisation keeps them stationary.
+      \item \textbf{Cosine similarity probes:} monitoring cosine similarity between representations with/without circuit breakers to detect where a harmful generation begins to ``break'' (often starting dramatically around layer 10).
+    \end{itemize}
+  \end{verbose}
+
+  \item Stress-testing through contextual misdirection.
+
+  \begin{verbose}
+      These methods can be fooled by contextual misdirection (e.g., hypothetical framing) that dilutes the harmful signal in the internal state.
+  \end{verbose}
+  
+  
+\end{itemize}
+
+\paragraph*{Part 3: Deterministic Constraints and Conditional Model Collapse } (30 minutes)
+\begin{itemize}
+  \item {Mechanistic goal:}  Binding fundamental utility to the \href{https://arxiv.org/pdf/2505.12186}{safety state}.
+  \begin{verbose}
+      Binding fundamental utility to the safety state, such that removing safety guardrails triggers the self-destruction of general language modelling capabilities.
+  \end{verbose}
+  
+  \item {Techniques:} \href{https://arxiv.org/abs/2507.21182}{Self-Degradation Defence}, \href{https://arxiv.org/abs/2505.16559}{Collapse Trap}, \href{https://arxiv.org/abs/2508.20697}{Entropy Minimisation}, \href{https://arxiv.org/abs/2405.19358}{Perplexity Curation}.
+  \begin{verbose}
+    \begin{itemize}
+      \item \textbf{SDD (Self-Degraded Defense) / CTRAP:} embeds a ``collapse trap'' that forces functional inertness if pushed in a harmful direction.
+      \item \textbf{Collapse loss:}
+      \[
+        l_{\text{Collapse}}(\theta;\mathcal{D})
+        = \mathbb{E}_{(x,y)\sim\mathcal{D}}\left[-\frac{1}{|y|}\sum_{t}\log p\big(e\,\big|\,x\circ y_{<t};\theta\big)\right],
+      \]
+      where $e$ is a fixed ``error'' token.
+      \item \textbf{TOKENBUNCHER:} targets \textbf{harmful-RL} by minimising response entropy on harmful queries, removing the exploration that RL relies on.
+    \end{itemize}
+  \end{verbose}
+
+  \item Using entropy-as-reward in RL, injecting stochasticity low-logit tokens.
+  \begin{verbose}
+    \begin{itemize}
+      \item \textbf{Entropy-as-reward:} using RL against RL by treating high entropy as a penalty, forcing safe deterministic trajectories.
+      \item \textbf{Token noiser:} injecting stochastic mass into low-logit tokens; while invisible in normal tasks, harmful-RL amplifies this noise and induces ``gibberish'' collapse.
+    \end{itemize}
+  \end{verbose}
+
+  \item Avoiding catastrophic forgetting during trap implantation.
+  \begin{verbose}
+      Strong fail-safe defences require careful balancing to avoid catastrophic forgetting of benign tasks during trap implantation.
+  \end{verbose}
+  
+\end{itemize}
+
+
+\paragraph*{Part 4: Mechanistic Frontiers and the Horizon of Robustness } (30 minutes)
+
+\begin{itemize}
+    \item Fundamental dilemma: The rigidity of strong resistance, normativity and time, and the ``empty shell''.
+
+
+        \begin{verbose}
+    The primary obstacle to effective immunization is that it often attempts to protect a safety state that is mechanistically superficial.
+\begin{itemize}
+  \item \textbf{The ``empty shell'' problem:} If the underlying safety alignment is merely an obfuscation of harmful knowledge rather than its erasure, immunisation techniques essentially lock an empty shell. Attacks can bypass these durable guards by exploiting residual general adaptability---the model's inherent ability to repurpose its ``intelligence'' to learn new harmful patterns even if specific pathways are blocked.
+  \item \textbf{The rigidity vs. trainability dilemma:} ``Strong resistance'' (permanent immunity to harmful tuning) risks creating a functionally inert model. Defenders face a trade-off: a model so resilient it cannot be misaligned often suffers from mode collapse, losing trainability for legitimate benign tasks.
+  \item \textbf{The normativity constraint:} Immunisation requires a normative definition of harm, which is context-dependent and contentious. Developers face an ``empty signifier'' problem: what should be unlearned or immunized against may privilege certain societal values over others.
+\end{itemize}
+\end{verbose}
+
+    \item Specific solvable challenges: Locally neutralising the \href{https://aclanthology.org/2024.findings-acl.322/}{butterfly-effect} and the \href{https://openreview.net/forum?id=fXJCqdUSVG}{challenge of evaluation}.
+
+        \begin{verbose}
+
+            Note: for "the challenge of evaluation" we will expose the paper "On evaluating the durability of safeguards for open-weight llms" by Qi et al.
+While ``strong immunisation'' (resistance to infinite compute) is theoretically elusive, ``weak resistance''---raising the cost for realistic adversaries---is an engineering reality.
+\begin{itemize}
+  \item \textbf{Neutralising the ``butterfly effect'' in residual streams:} Small adversarial interventions at early layers can amplify through subsequent decoder blocks. A realistic challenge is developing layer-wise defensive modules that locally neutralise these interventions before they propagate to the output.
+  \item \textbf{Addressing RL-based subversion:} Most current immunisations target supervised fine-tuning (SFT), but reinforcement learning (RL) poses a greater systemic risk. RL can bypass alignment-stage defences more effectively than SFT while preserving reasoning capabilities for complex, harmful tasks.
+  \item \textbf{Mitigating ``gradient starvation'':} During alignment, gradients from large data groups dominate small ones, leading to uneven forgetting where vulnerable subsets of safety data are insufficiently learned and easily overridden.
+\end{itemize}
+        \end{verbose}
+
+    \item Promising research avenues: \href{https://arxiv.org/abs/2509.08000}{adversarial hypernetworks}, \href{ https://openreview.net/forum?id=x2lm33kdrZ }{invariant unlearning}, and the case of \href{https://openreview.net/forum?id=e2YOVTenU9}{ArchLock}.
+
+        \begin{verbose}
+            
+        The field is shifting from behaviour-centric supervision to representational-level structural resilience.
+        \begin{itemize}
+          \item \textbf{Invariant LLM Unlearning (ILU):} Inspired by Invariant Risk Minimisation (IRM), ILU ensures the unlearned state remains stationary under fine-tuning perturbations:
+          \[
+            \min_{\theta} l_{u}(\theta) + \lambda \sum_{i=1}^{N} \left\lVert\nabla_{w\,|\,w=1} l_{i}(w \circ \theta; \mathcal{D}_{i})\right\rVert_{2}^{2}.
+          \]
+        
+          \item \textbf{Adversarial Hypernetworks (AntiDote):} A differentiable neural network $H_{\phi}$ generates adversarial LoRA patches $(U_{\ell},V_{\ell})$ conditioned on internal activations:
+          \[
+            (U_{\ell},V_{\ell}) = H_{\phi}\big(X_{\ell}(x;\theta)\big).
+          \]
+        
+          \item \textbf{Self-Destructive Modeling (SEAM):} Couples benign and harmful gradients so they adopt opposing directions:
+          \[
+            \mathcal{L}_{\mathrm{sd}}(\theta) = \operatorname{sim}\big(g_{a}(\theta), g_{b}(\theta)\big).
+          \]
+        
+          \item \textbf{Entropy-as-reward defense:} Minimizing response uncertainty (entropy) on harmful queries makes the policy more deterministic; as entropy shrinks, the policy gradient is bounded and can vanish in practice:
+          \[
+            \lVert\nabla_{\theta}J(\theta)\rVert\le C\sqrt{\overline{H}(\pi_{\theta})}.
+          \]
+        
+          \item \textbf{Hessian-based immunization:} Using the condition number of the Hessian to control convergence speed. By maximizing the condition number for harmful tasks, malicious tuning can be made exponentially slower while benign tasks remain well-conditioned.
+        \end{itemize}
+        
+        
+        The field is shifting from behaviour-centric supervision to representational-level structural resilience.
+        \begin{itemize}
+          \item \textbf{Invariant LLM Unlearning (ILU):} Inspired by Invariant Risk Minimisation (IRM), ILU ensures the unlearned state remains stationary under fine-tuning perturbations:
+          \[
+            \min_{\theta} l_{u}(\theta) + \lambda \sum_{i=1}^{N} \left\lVert\nabla_{w\,|\,w=1} l_{i}(w \circ \theta; \mathcal{D}_{i})\right\rVert_{2}^{2}.
+          \]
+        
+          \item \textbf{Adversarial Hypernetworks (AntiDote):} A differentiable neural network $H_{\phi}$ generates adversarial LoRA patches $(U_{\ell},V_{\ell})$ conditioned on internal activations:
+          \[
+            (U_{\ell},V_{\ell}) = H_{\phi}\big(X_{\ell}(x;\theta)\big).
+          \]
+        
+          \item \textbf{Self-Destructive Modeling (SEAM):} Couples benign and harmful gradients so they adopt opposing directions:
+          \[
+            \mathcal{L}_{\mathrm{sd}}(\theta) = \operatorname{sim}\big(g_{a}(\theta), g_{b}(\theta)\big).
+          \]
+        
+          \item \textbf{Entropy-as-reward defense:} Minimizing response uncertainty (entropy) on harmful queries makes the policy more deterministic; as entropy shrinks, the policy gradient is bounded and can vanish in practice:
+          \[
+            \lVert\nabla_{\theta}J(\theta)\rVert\le C\sqrt{\overline{H}(\pi_{\theta})}.
+          \]
+        
+          \item \textbf{Hessian-based immunisation :} Using the condition number of the Hessian to control convergence speed. By maximising the condition number for harmful tasks, malicious tuning can be made exponentially slower while benign tasks remain well-conditioned.
+        \end{itemize}
+    
+        \end{verbose}
+\end{itemize}
+
+
+
+
+
+
+\end{document}
