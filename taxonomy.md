@@ -28,15 +28,15 @@ The common thread: **the attacker can try to fine-tune, and the model will passi
 | 3 | CTRL |
 | 4 | Vaccine |
 | 5 | Circuit Breakers |
-| 7 | E.T. / LAPT|
+| 7 | [E.T.](https://www.techrxiv.org/users/925680/articles/1301297-ethical-treatment-of-language-models-against-harmful-inference-time-interventions) / [LAPT](https://arxiv.org/pdf/2506.16078)|
 | 8 | TAR |
 | 9 | Booster |
-| 10 | LoX |
+| 10 | [LoX](https://arxiv.org/pdf/2506.15606) |
 | 11 | VAA |
 | 12 | ILU |
-| 13 | Condition Number |
+| 13 | [Condition Number](https://arxiv.org/pdf/2505.23760) |
 | 17 | Targeted Vaccine |
-| 19 | AntiDote |
+| 19 | [AntiDote](https://arxiv.org/pdf/2509.08000) |
 
 
 ## Block 2 — *Conditional Model Collapse (Fail-Safe Traps)*
