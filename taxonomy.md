@@ -59,3 +59,12 @@ The common thread: **the attacker may succeed in removing the safety guardrails,
 | 20 | Token Buncher |
 
 
+### A side note on paper 2 (Self-Destructing Models):
+
+This paper is literally called *Self-Destructing Models*, and CTRAP, SDD, and SEAM all cite it as their direct conceptual ancestor. In that *lineage* sense, one would say it belongs with Block 2.
+
+However, when we will look at what MLAC **actually does mechanistically**, we'll notice it sits firmly in Block 1. It uses bi-level meta-learning to push the model's parameters into a region that is a local minimum for harmful tasks — making harmful fine-tuning expensive and inefficient. The model doesn't collapse; it just becomes a bad starting point for harmful adaptation. There is no trap, no triggered degradation, no conditional inertness. The adversary who persists with enough data and compute can still get there.
+
+The Block 2 papers took the *name and the spirit* of self-destruction but completely changed the *mechanism*: instead of raising cost, they engineer a conditional catastrophe — if you push, the model becomes useless for everyone.
+
+So while CTRAP is the conceptual grandfather of Block 2, it is technically a Block 1 paper — which is actually quite an interesting position for it to occupy. It's the bridge between the two blocks.
