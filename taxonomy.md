@@ -32,7 +32,7 @@ The common thread: **the attacker can try to fine-tune, and the model will passi
 | 8 | TAR |
 | 9 | Booster |
 | 10 | [LoX](https://arxiv.org/pdf/2506.15606) |
-| 11 | VAA |
+| 11 | [VAA](https://arxiv.org/pdf/2506.03850) |
 | 12 | ILU |
 | 13 | [Condition Number](https://arxiv.org/pdf/2505.23760) |
 | 17 | Targeted Vaccine |
