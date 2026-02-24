@@ -1,0 +1,1 @@
+drawing on the observation that LLM safety mechanisms are localized in a small fraction of model weights [\(Wei et al.,](#page-11-6) [2024\)](#page-11-6), RepNoise [\(Rosati et al.,](#page-10-10) [2024\)](#page-10-10) disrupts the information structure of harmful representations, making them significantly harder to recover.

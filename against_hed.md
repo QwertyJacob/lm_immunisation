@@ -1,0 +1,1 @@
+Vaccine [\(Huang](#page-10-7) [et al.,](#page-10-7) [2024b\)](#page-10-7), T-Vaccine [\(Liu et al.,](#page-10-8) [2024a\)](#page-10-8), and Booster [\(Huang et al.,](#page-10-9) [2025\)](#page-10-9) aim to counteract the harmful embedding shift, a phenomenon first noted by [Huang et al..](#page-10-7) 

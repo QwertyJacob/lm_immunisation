@@ -1,0 +1,8 @@
+
+**Toward a Second Paradigm: Immunization Through Collapse**
+
+The limitations of selective unlearning approaches are not merely empirical — they appear to be fundamental. A key insight from mechanistic interpretability is that transformer models exhibit a form of *self-repair*: when specific components or pathways are disrupted, the network tends to redistribute computation and recover the original behavior through alternative circuits [(Nanda et al., 2024)](https://openreview.net/forum?id=3MAKYiO7Kn). This architectural tendency toward self-correction means that any immunization strategy which leaves the model's general capabilities intact is, in principle, fighting against the model itself — an attacker with enough data and steps will almost always win, because the model's own inductive biases are working in their favor.
+
+CTRAP [(Yi et al., 2025)](https://arxiv.org/pdf/2505.16559) takes this observation seriously and draws a stark conclusion: if general adaptability is the root vulnerability, the only robust defense is to neutralize it conditionally. Rather than trying to selectively erase harmful knowledge while preserving everything else — a distinction the model will eventually blur — CTRAP embeds a collapse trigger during alignment that degrades *all* capabilities in response to persistent harmful fine-tuning dynamics. The model cannot repair what it is actively being instructed to destroy.
+
+> This points toward a second paradigm of immunization: not *what the model knows*, but *what the model becomes* when pushed in harmful directions. Younger, less explored, but arguably more coherent in its logic — this paradigm accepts the self-repair problem as a given and answers it structurally rather than informationally.
