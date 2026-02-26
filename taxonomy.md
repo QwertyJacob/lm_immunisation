@@ -54,7 +54,7 @@ The common thread: **the attacker may succeed in removing the safety guardrails,
 | # | Paper |
 |---|-------|
 | 14 | [CTRAP](https://arxiv.org/pdf/2505.16559) |
-| 15 | SEAM (Self-Destructive LM) |
+| 15 | [SEAM] (https://arxiv.org/pdf/2505.12186) |
 | 18 | [SDD](https://arxiv.org/pdf/2507.21182) |
 | 20 | Token Buncher |
 

@@ -100,13 +100,12 @@ SDD constructs the dataset as `<harmful instruction, irrelevant high-quality ans
 - High-quality responses from LIMA and Alpaca (response side only, randomly matched)
 - Semantic similarity filter via SentenceBERT — pairs where cosine similarity exceeds a threshold are resampled to prevent accidental information leakage
 
-Training is simple cross-entropy SFT. No adversarial gradients, no look-ahead steps, no Hessian tricks.
+> Training is simple cross-entropy SFT. No adversarial gradients, no look-ahead steps, no Hessian tricks.
 
 ### 3.5 What SDD Does and Doesn't Do
 
 SDD installs no explicit trap in parameter space. The self-destruction is an emergent consequence of what MFT must do to $\pi_\theta(y_o|x)$. This is elegant but leaves some gaps: SDD says nothing about *how aggressively* collapse is triggered, and the theoretical conditions ($\bar{n}_v > n_v^*$, $\bar{n}_s < n_s^*$) are sufficient but not controlled.
 
----
 
 ## 4. CTRAP — Collapse Trap
 
