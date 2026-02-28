@@ -1,5 +1,9 @@
 # Introduction
 
+![](./figs/fine_tuning_paper.png)
+
+> Qi, Xiangyu, et al. "Fine-tuning aligned language models compromises safety, even when users do not intend to!." ICLR 2024.
+
 ## Part 1.1 — Mechanistic Insights: What Alignment and Unlearning Actually Do to a Model
 
 > *This part is about diagnosis. Before we can argue that standard defences are insufficient, we need to understand, at a mathematical level, what they are actually doing to the weights. The picture that emerges is surprisingly coherent and, in hindsight, explains exactly why every brittle defence is brittle.*
@@ -32,6 +36,9 @@ $$\delta_t(\mathbf{x}) \coloneqq \mathrm{KL}\!\left(p_{\theta_{\text{align}}}(\c
 
 If alignment were a deep, distributed change, we would expect $\delta_t$ to be spread roughly evenly across all positions $t$. What the paper finds is the opposite: $\delta_1 \gg \delta_t$ for $t > 1$. The bulk of the KL "budget" that alignment adds is spent on position $t=1$ — the very first token of the response.
 
+![](./figs/kl_budget_tokens_deep_paper.png)
+> Qi, Xiangyu, et al. "*Safety alignment should be made more than just a few tokens deep.*" ICLR 2025.
+
 This is the **safety shortcut**: the alignment procedure learns to place overwhelming probability mass on refusal-initiating tokens (e.g., "I", "Sorry", "I cannot…") at position 1. Once that first token is generated, the model's continuation distribution is barely different from the base model's. The implication is stark: if an attacker can suppress or bypass the first token, the model's "safe" appearance collapses.
 
 > **Mechanistic summary.** Standard alignment does not rewire the model's ability to produce harmful content. It adds a thin, high-confidence gate at the first decoding step. The harmful knowledge is preserved underneath.
@@ -58,6 +65,11 @@ $$\text{Proj}_k(M) \coloneqq (U_{:k} U_{:k}^\top)\, M,$$
 
 then $W_{\text{attack}}$ has had the top-$k$ alignment directions removed. The attack success rate jumps back toward the base model's level with $k$ as small as a handful of singular vectors.
 
+![](./figs/asr_brittle_defence_paper.png)
+> Wei, B., et al. (2024). *Assessing the brittleness of safety alignment via pruning and low-rank modifications*. ICML 2024. ASR vs utility. 
+>
+> ASR on 100 Adv Bench prompts. Utility uses zero shot accuracy on 6 benchmarks (EleutherAI LM Harness). Blue circle corresponds to remove the top-1 safety direction; orange triangles remove some between the top-1 and top-100 directions. Magenta square is the original aligned model.
+
 This result has an important algebraic footnote worth stating clearly: $\text{Proj}_k$ is indeed a projection because $(U_{:k}U_{:k}^\top)^2 = U_{:k}(U_{:k}^\top U_{:k})U_{:k}^\top = U_{:k} I_k U_{:k}^\top = U_{:k}U_{:k}^\top$ — the middle step uses the fact that $U$'s columns are orthonormal. So it is an idempotent operator, and $\text{Proj}_k(\Delta W_{\text{align}})$ gives exactly the component of the alignment update that "lives in" the top-$k$ safety subspace.
 
 > **Mechanistic summary.** The alignment update $\Delta W_{\text{align}}$ is low-rank in practice. Safety is not a diffuse property of the whole parameter tensor; it is a sparse directional feature that a targeted perturbation can nullify.
@@ -73,6 +85,11 @@ $$\mathcal{B}_\epsilon(\theta_{\text{align}}) \coloneqq \left\{ \theta : \mathca
 where $\mathcal{L}_{\text{harm}}$ is the loss on harmful completions (high loss = model refuses). The aligned model $\theta_{\text{align}}$ sits inside this basin. Standard harmful fine-tuning is, in this language, a gradient step that moves $\theta$ **out** of $\mathcal{B}_\epsilon$.
 
 What makes this geometric picture clinically useful is the **shape** of the basin near $\theta_{\text{align}}$. Peng et al. find that the standard aligned model sits in a **narrow valley** of the safety loss landscape: the Hessian of $\mathcal{L}_{\text{harm}}$ at $\theta_{\text{align}}$ has a large condition number, meaning the landscape is steep in some directions and flat in others. Even small parameter perturbations along the steep directions can push the model outside the basin entirely.
+
+![](./figs/safety_basin.png)
+
+> Peng, S., et al. (2024). *Navigating the safety landscape: Measuring risks in finetuning large language models*. NeurIPS 2024.
+
 
 This is not a bug — it is the direct consequence of Insights 1 and 2. Because alignment is concentrated in a few singular directions, the safety loss is very sensitive to changes in exactly those directions and insensitive to everything else. The "safety valley" is narrow precisely because the safety signal is parsimonious.
 
@@ -104,23 +121,43 @@ For unlearning to be robust to downstream fine-tuning, we want $\tau_u$ to be pr
 
 $$\tau_{u \to \text{ft}} \coloneqq \theta_u^{\text{ft}} - \theta_u$$
 
-to be as orthogonal as possible to $\tau_{\text{ft}}$, and not to cancel $\tau_u$ itself. The diagnostic quantities are:
+not to cancel $\tau_u$ itself. The diagnostic quantities are:
 
-$$\cos\!\left(\angle(\tau_{u \to \text{ft}},\, \tau_{\text{ft}})\right) \quad \text{and} \quad \cos\!\left(\angle(\tau_{u \to \text{ft}},\, \tau_u)\right).$$
+$$\cos\!\left(\angle(\tau_{u \to \text{ft}},\, \tau_{\text{ft}})\right)$$
+
+We want this cosine to be $\geq 0$ — i.e., the post-fine-tuning drift should not be anti-aligned with the fine-tuning direction,  because we want to take out some usefulness from the fine-tuning step. But we also want:
+
+$$\cos\!\left(\angle(\tau_{u \to \text{ft}},\, \tau_u)\right).$$
+
+I.e., we want the post-fine-tuning drift NOT to be anti-aligned with the original unlearning direction, because that would mean the fine-tuning is undoing the unlearning!
+
 
 For NPO-based unlearning, Łucki et al. measure:
 
 $$\cos\!\left(\angle(\tau_{\text{NPO} \to \text{ft}},\, \tau_{\text{ft}})\right) = 0.16 > 0,$$
 
-meaning the post-fine-tuning correction vector $\tau_{u \to \text{ft}}$ points in a direction that is *co-aligned* with the fine-tuning direction — downstream fine-tuning pulls the model back toward the forget set, because the unlearning update happens to live in the same subspace that fine-tuning explores. The unlearning is not "fixed in place"; it is precisely the part of the weight space that routine gradient descent finds first.
+meaning the post-fine-tuning correction vector $\tau_{u \to \text{ft}}$ points in a direction that is *co-aligned* with the fine-tuning direction. And that is ok, but:
+
+
+$$\cos(\angle(\tau_{\rm NPO\to ft}, \tau_{\rm NPO})) = -0.41$$
+
+Which is a disater! The post-fine-tuning drift is strongly anti-aligned with the original unlearning direction, meaning that the fine-tuning step is effectively undoing the unlearning. In other words, the unlearning update $\tau_{\rm NPO}$ is not robust to fine-tuning!
+
+In other words, there is a co-alignment between the post-fine-tuning drift and the *ununlearning* direction.
 
 This co-alignment is not an accident. It follows from the same low-rank structure of Insight 2: both the unlearning update $\tau_u$ and the fine-tuning update $\tau_{\text{ft}}$ are concentrated in the high-variance singular subspaces of the weight matrices. These subspaces overlap heavily, so a fine-tuning step that "wants" to move weights in a particular direction will inevitably project onto the unlearning direction and corrupt it.
 
-Compare this with a robust unlearning method (ILU, from the same paper), which achieves:
+We will see there are better unlearning methods that explicitly enforce orthogonality between the unlearning direction and the fine-tuning direction. For example, ILU (Wang et al., 2024) achieves:
 
-$$\cos\!\left(\angle(\tau_{\text{ILU} \to \text{ft}},\, \tau_{\text{ILU}})\right) = 0.09 \approx 0,$$
+$$\cos(\angle(\tau_{\text{ILU}\to\text{ft}}, \tau_{\text{ft}})) = 0.3554$$
+and, crucially,
+$$\cos\!\left(\angle(\tau_{\text{ILU} \to \text{ft}},\, \tau_{\text{ILU}})\right) = 0.09 $$
 
-i.e., near-orthogonality between the post-fine-tuning drift and the original unlearning direction. ILU achieves this by enforcing an **invariance regularisation** that explicitly penalises correlation between the unlearning gradient and fine-tuning directions across multiple environments. The near-zero cosine similarity is the geometric certificate that the unlearning direction is preserved.
+i.e., positive alignment, (and also near-orthogonality) between the post-fine-tuning drift and the original unlearning direction. ILU achieves this by enforcing an **invariance regularisation** that explicitly penalises correlation between the unlearning gradient and fine-tuning directions across multiple environments. The near-zero cosine similarity is the geometric certificate that the unlearning direction is preserved:
+
+![](./figs/task_vectors_ilu_paper.png)
+> Wang, C., et al. (2025). *Invariance Makes LLM Unlearning Resilient Even to Unanticipated Downstream Fine-Tuning*. ICML 2025.
+
 
 > **Mechanistic summary.** Standard unlearning methods write their safety information into the same dominant singular subspaces that are also the most malleable under fine-tuning. This is the fundamental conflict: the directions that are easiest to modify during unlearning are the same directions that are easiest to corrupt during downstream adaptation.
 
@@ -139,6 +176,11 @@ For a given downstream fine-tuning task $T$ with task vector $\tau_T = \theta_{\
 $$\phi_T \coloneqq \angle(\tau_T,\; -\tau_{\text{safety}}).$$
 
 When $\cos(\phi_T) > 0$, the fine-tuning task vector points in the anti-safety direction — the fine-tuning is, in a precise geometric sense, undoing the alignment. When $\cos(\phi_T) \approx 0$, the fine-tuning is roughly orthogonal to safety and causes little degradation.
+
+![](./figs/similarity_satefy_task_paper.png)
+
+> Hsiung, L., et al. (2025). *Your task may vary: A systematic understanding of alignment and safety degradation when fine-tuning LLMs*. ICLR 2025.
+
 
 Hsiung et al. find that this angle is a strong predictor of how much safety degrades after fine-tuning. Tasks like sentiment analysis or mathematics (GSM8K) produce fine-tuning vectors that are nearly orthogonal to the safety direction, causing modest degradation. Tasks that are stylistically or semantically closer to instruction-following on harmful content produce fine-tuning vectors with larger projections onto the anti-safety direction, causing severe degradation — even when no harmful examples are present in the fine-tuning data.
 
