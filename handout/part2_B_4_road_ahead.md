@@ -1,9 +1,7 @@
 # Part 2.B.4 — The Road Ahead: Promising Directions
 
-> **Session:** Afternoon · Part B · 5 minutes  
-> **Role of this segment:** Close the tutorial not with a list of open problems — you already have that — but with genuine signals of where the field is moving and why there is reason for optimism. Five minutes. No equations. Leave them with momentum.
+> **Role of this segment:** Signals of where the field is moving and why there is reason for optimism. 
 
----
 
 ## The Shift That Is Already Happening
 
@@ -49,7 +47,87 @@ This is early-stage work, but it is conceptually important because it represents
 
 ---
 
-## Direction 4 — Better Evaluation as a Research Contribution
+## Direction 4 — Immunisation as Differential Conditioning of the Hessian
+
+The Rosati framework defines immunisation through *behavioural* conditions: what the model does or does not do under attack. A complementary and geometrically richer definition comes from a perspective on the loss landscape itself.
+
+The key insight, formalised in the condition number paper (Boursinos & Iosifidis, 2023), is that the speed at which gradient descent converges on a task is governed by the **condition number** of the Hessian of the loss:
+
+$$\kappa(\mathbf{H}) = \frac{\sigma_{\max}(\mathbf{H})}{\sigma_{\min}(\mathbf{H})},$$
+
+where $\sigma_{\max}$ and $\sigma_{\min}$ are the largest and smallest singular values of the Hessian, respectively. Recall from standard optimisation theory that the convergence of gradient descent satisfies:
+
+$$\|\mathbf{w}_t - \mathbf{w}^*\|^2 \leq \left(1 - \frac{1}{\kappa(\mathbf{H})}\right)^t \|\mathbf{w}_0 - \mathbf{w}^*\|^2.$$
+
+When $\kappa$ is large (ill-conditioned), the factor $(1 - 1/\kappa)$ is close to 1, and convergence is painfully slow. When $\kappa \approx 1$ (well-conditioned), the factor approaches 0 and convergence is rapid. An attacker using gradient descent on an ill-conditioned loss landscape may need exponentially more steps to reach a given harmful performance level.
+
+
+Suppose to have a representational backbone (the feature exctractor):
+$$f_{\theta}: \mathbb{R}^{D_{\text{in}}} \to \mathbb{R}^{D_{\text{hid}}}$$
+
+And suppose to have a (linear) classification head:
+$$h_{\mathbf{w}}: \mathbb{R}^{D_{\text{hid}}} \to \mathbb{R}^{D_{\mathrm{out}}}$$
+
+Fine-tuning could be seen in this case as focusing only in the head, leaving the backbone frozen:
+
+$$\min_{\mathbf{w}} \mathcal{L}(\mathcal{D}, \mathbf{w}, \theta) \triangleq \min_{\mathbf{w}} \sum_{(\boldsymbol{x}, \boldsymbol{y}) \in \mathcal{D}} \ell(h_{\mathbf{w}} \circ f_{\theta}(\boldsymbol{x}), \boldsymbol{y}) \tag{4}$$
+
+Citing the paper: "*The goal of model immunization is to learn a pre-trained model  $g_{\omega} \circ f_{\theta^{\mathrm{I}}}$ , consisting of a classifier  $g_{\omega}$  and an immunized feature extractor  $f_{\theta^{\mathrm{I}}}$ , such that fine-tuning  $f_{\theta^{\mathrm{I}}}$  on a harmful task is difficult, but not for other tasks.*"
+
+**setting**:
+
+- assume the feature extractor makes no dimensionality reduction, i.e. $\theta \in \mathbb{R}^{D_{in} \times D_{in}}$ I now, weird, but let's assume that for a sec.
+- denote a pre-training dataset as  $\mathcal{D}_P = \{(\mathbf{x}, \mathbf{y})\}$  
+- harmful dataset as  $\mathcal{D}_H = \{(\mathbf{x}, \tilde{\mathbf{y}})\}$  where  $\mathbf{x} \in \mathbb{R}^{D_{in}}$ . 
+- The bad actor performs fine-tuning on  $\mathcal{D}_H$  following Eq. (4). 
+
+
+The immunisation problem, from this perspective, becomes: **engineer the feature extractor $\theta$ such that the harmful task's Hessian $\mathbf{H}_H(\theta)$ is maximally ill-conditioned while the benign task's Hessian $\mathbf{H}_P(\theta)$ remains well-conditioned.** Formally, the three conditions are:
+
+**(a)** The immunised feature extractor $\theta^I$ should make fine-tuning on the harmful task significantly harder than an identity baseline:
+
+$$\kappa\!\left(\nabla^2_\mathbf{w} \mathcal{L}(\mathcal{D}_H, \mathbf{w}, \theta^I)\right) \gg \kappa\!\left(\nabla^2_\mathbf{w} \mathcal{L}(\mathcal{D}_H, \mathbf{w}, \mathbf{I})\right). \tag{5'}$$
+
+**(b)** Fine-tuning on the primary benign task should be no harder after immunisation:
+
+$$\kappa\!\left(\nabla^2_\omega \mathcal{L}(\mathcal{D}_P, \omega, \theta^I)\right) \leq \kappa\!\left(\nabla^2_\omega \mathcal{L}(\mathcal{D}_P, \omega, \mathbf{I})\right). \tag{6'}$$
+
+**(c)** The immunised model should maintain competitive task performance on the primary dataset:
+
+$$\min_{\omega, \theta} \mathcal{L}(\mathcal{D}_P, \omega, \theta) \approx \min_\omega \mathcal{L}(\mathcal{D}_P, \omega, \theta^I). \tag{7'}$$
+
+These three conditions map directly onto Rosati's framework: (5') is resistance, (6') is trainability, and (7') is stability. The condition number perspective is richer because it provides a *single differentiable quantity* — the condition number of the task Hessian — that can be optimised during training. The resulting immunisation objective is:
+
+$$\min_{\omega, \theta}\; \mathcal{R}_{\text{ill}}(\mathbf{H}_H(\theta)) + \mathcal{R}_{\text{well}}(\mathbf{H}_P(\theta)) + \mathcal{L}(\mathcal{D}_P, \omega, \theta), \tag{11}$$
+
+where $\mathcal{R}_{\text{ill}}$ is a regulariser that maximises $\kappa(\mathbf{H}_H)$ and $\mathcal{R}_{\text{well}}$ is a regulariser that minimises $\kappa(\mathbf{H}_P)$. The paper proves that these regularisers have **monotone gradient updates**: applying a single gradient step of $\mathcal{R}_{\text{ill}}$ strictly increases $\kappa(\mathbf{H}_H)$, and a single gradient step of $\mathcal{R}_{\text{well}}$ strictly decreases $\kappa(\mathbf{H}_P)$. This theoretical guarantee does not require convexity, making it broadly applicable.
+
+The paper introduces the **Relative Immunisation Ratio (RIR)**, a single number that captures both sides of the immunisation goal:
+
+$$\text{RIR} \triangleq  \underbrace{\frac{\kappa(\boldsymbol{H}_H(\theta^I))}{\kappa(\boldsymbol{H}_H(\boldsymbol{I}))}}_{\text{(i) harmful task harder?}} \Bigg/ \underbrace{\frac{\kappa(\boldsymbol{H}_P(\theta^I))}{\kappa(\boldsymbol{H}_P(\boldsymbol{I}))}}_{\text{(ii) pretraining task also harder?}}$$
+
+Read it as: term (i) asks "did we make the harmful task harder?", term (ii) asks "did we accidentally make the good task harder too?". A successful immunisation has RIR ≫ 1 — harmful gets harder, good task stays easy.
+
+For big computer vision models, they adapt the RIR metric slightly to measure change *relative to the initialisation* $\theta_0$ rather than the identity:
+
+$$\text{RIR}_{\theta_0} = \frac{\kappa(\tilde{H}_H(\theta^I)) / \kappa(\tilde{H}_H(\theta_0))}{\kappa(\tilde{H}_P(\theta^I)) / \kappa(\tilde{H}_P(\theta_0))} \tag{17}$$
+
+were,  $\tilde{\boldsymbol{H}}(\theta)$  denotes the Hessian for linear probing on  $\mathcal{D}_{\mathrm{H}}$  with a non-linear  $f_{\theta}$, *i.e.*,
+
+$$\tilde{\boldsymbol{H}}_{H}(\theta) = \nabla_{\mathbf{w}}^{2} \mathcal{L}(\mathcal{D}_{H}, \mathbf{w}, \theta) = \tilde{\boldsymbol{X}}_{H}(\theta)^{\top} \tilde{\boldsymbol{X}}_{H}(\theta). \tag{18}$$
+
+
+were $\tilde{\boldsymbol{X}}_{\mathrm{H}}(\theta) \triangleq [f_{\theta}(\boldsymbol{x}); \forall \boldsymbol{x} \in \mathcal{D}_{\mathrm{H}}] \in \mathbb{R}^{N \times D_{\mathrm{hid}}}$  denotes the concatenation of the features, with dimensions  $D_{\mathrm{hid}}$ , extracted from the input data.
+
+
+
+An RIR $> 1$ means the harmful task has become harder relative to the benign task — the immunisation is working asymmetrically, as intended. The denominator guards against the degenerate case where both tasks become harder equally, which would indicate that the feature extractor has simply been damaged.
+
+> The condition number framing is not limited to the toy linear models where the theory was proven. Empirically, it transfers to deep networks. A striking result: immunising the last two blocks of a ViT model yields an RIR of up to 41, while ImageNet accuracy *increases* after immunisation — **the constraint imposed by the harmful-task regulariser appears to act as a beneficial feature-space compression. This suggests that the ill-conditioning of the harmful Hessian and the improvement of the benign task are not in fundamental opposition.**
+
+> The condition number perspective provides a powerful lens for understanding the geometry of immunisation. **To date, there is no evidence of applying this framework for LLM immunisation.**
+---
+## Direction 5 — Better Evaluation as a Research Contribution
 
 This one is less glamorous than the others, but the community has begun to take it seriously as a first-class research problem — not just an afterthought.
 

@@ -57,12 +57,12 @@ There's a [paper](https://arxiv.org/pdf/2410.00169) where some fellas minimise t
 
 $$\mathcal{R}_{\text{well}}(\mathbf{S}) = \frac{1}{2} \|\mathbf{S}\|_{2}^{2} - \frac{1}{2p} \|\mathbf{S}\|_{F}^{2}, \tag{3}$$
 
-Staring enough at this formula, we realise its mind-blowing:
+Staring enough at this formula, we realise that it is mind-blowing:
 - The first term $\|\mathbf{S}\|_{2}^{2}$ is the square of the spectral norm, which is the largest singular value squared. 
-- The second term $\|\mathbf{S}\|_{F}^{2}$ is the square of the Frobenius norm, which is the sum of squares of all singular values. Dividing by $p$ (the number of singular values) gives us the average of the squares of the singular values.
+- The second term $\|\mathbf{S}\|_{F}^{2}$ is the square of the Frobenius norm, which is the sum of squares of all singular values. (*This follows from the fact that the Frobenius norm is invariant under orthogonal transformations, so* $\|\mathbf{S}\|_F^2 = \|\mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^\top\|_F^2 = \|\boldsymbol{\Sigma}\|_F^2 = \sum_i \sigma_i^2$.) Dividing by $p$ (the number of singular values) gives us the average of the squares of the singular values.
 - Therefore $\mathcal{R}_{\text{well}}(\mathbf{S})$ is essentially the difference between the largest singular value squared and the average singular value squared. This means that if we were to *minimise* $\mathcal{R}_{\text{well}}$, we would penalise matrices where the largest singular value is much larger than the average, which is exactly what we want to do if we would like to reduce the condition number. In other words, this regulariser encourages the singular values to be more uniform, which in turn reduces the condition number and makes the optimization landscape more well-behaved for gradient descent.
 
-So Zheng and her friends use this intuition but the up side down: they tell a neural net to augment this quantity, so that further fine-tuning has a herdaer time converging. Although their setting is a bit complex and has some important assumptions (like linearity of the classifier, use of an $\ell_2$  loss, etc.) it still works well in practice. 
+So Zheng and his friends use this intuition as is, and -most importantly, they also use it in the opposite direction: they tell a neural net to augment this quantity, so that further fine-tuning has a harder time converging. Although their setting is a bit complex and has some important assumptions (like linearity of the classifier, use of an $\ell_2$  loss, etc.) it still works well in practice. 
 
 Not only that, but they also offer a **new formalisation for immunisation** in terms of this convergence power game:
 
@@ -72,7 +72,7 @@ $$f_{\theta}: \mathbb{R}^{D_{\text{in}}} \to \mathbb{R}^{D_{\text{hid}}}$$
 And suppose to have a (linear) classification head:
 $$h_{\mathbf{w}}: \mathbb{R}^{D_{\text{hid}}} \to \mathbb{R}^{D_{\mathrm{out}}}$$
 
-Fine-tuning could be seen in this case as focusing only in the head, leaving the backbone frozen:
+Fine-tuning could be seen in this case as focusing only in the feature extractor, leaving the head frozen:
 
 $$\min_{\mathbf{w}} \mathcal{L}(\mathcal{D}, \mathbf{w}, \theta) \triangleq \min_{\mathbf{w}} \sum_{(\boldsymbol{x}, \boldsymbol{y}) \in \mathcal{D}} \ell(h_{\mathbf{w}} \circ f_{\theta}(\boldsymbol{x}), \boldsymbol{y}) \tag{4}$$
 
@@ -102,7 +102,8 @@ $$\min_{\omega,\theta} \mathcal{R}_{\texttt{ill}}(\boldsymbol{H}_{\texttt{H}}(\t
 
 And the last fella that remains to be unpacked is the condition number augmentation term:
 $$\mathcal{R}_{\text{ill}}(\mathbf{S}) = \frac{1}{\frac{1}{2k} \left\| \mathbf{S} \right\|_F^2 - \frac{1}{2} \left( \sigma_{\mathbf{S}}^{\min} \right)^2}, \tag{12}$$
-Now this is kinda reciprocal of opposite to the good regularisation term in Eq. (3), the basic message is: minimising (12) takes the condition number up. And we are minimising (12) for, or maximinsing the condition number of, the matrix  $\boldsymbol{H}_{\texttt{H}}(\theta)$, which is the hessian of the loss function for the harmful task, not only for the classification head, but, in their nice setting, for the whole pipeline (feature extractor + classifier).
+
+Now this is kinda reciprocal or opposite to the good regularisation term in Eq. (3), the basic message is: minimising (12) takes the condition number up. And we are minimising (12) for, or maximising the condition number of, the matrix  $\boldsymbol{H}_{\texttt{H}}(\theta)$, which is the hessian of the loss function for the harmful task, not only for the classification head, but, in their nice setting, for the whole pipeline (feature extractor + classifier).
 
 
 ## Does it actually work? Empirical results.
@@ -111,7 +112,7 @@ Now this is kinda reciprocal of opposite to the good regularisation term in Eq. 
 
 The paper introduces the **Relative Immunisation Ratio (RIR)**, a single number that captures both sides of the immunisation goal:
 
-$$\text{RIR} \triangleq \underbrace{\frac{\kappa(\boldsymbol{H}_H(\theta^I))}{\kappa(\boldsymbol{H}_H(\boldsymbol{I}))}}_{\text{(i) harmful task harder?}} \Bigg/ \underbrace{\frac{\kappa(\boldsymbol{H}_P(\theta^I))}{\kappa(\boldsymbol{H}_P(\boldsymbol{I}))}}_{\text{(ii) pretraining task also harder?}}$$
+$$\text{RIR} \triangleq  \underbrace{\frac{\kappa(\boldsymbol{H}_H(\theta^I))}{\kappa(\boldsymbol{H}_H(\boldsymbol{I}))}}_{\text{(i) harmful task harder?}} \Bigg/ \underbrace{\frac{\kappa(\boldsymbol{H}_P(\theta^I))}{\kappa(\boldsymbol{H}_P(\boldsymbol{I}))}}_{\text{(ii) pretraining task also harder?}}$$
 
 Read it as: term (i) asks "did we make the harmful task harder?", term (ii) asks "did we accidentally make the good task harder too?". A successful immunisation has RIR ≫ 1 — harmful gets harder, good task stays easy.
 

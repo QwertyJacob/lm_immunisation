@@ -1,6 +1,6 @@
 ## Part 1.4 — Defining Language Model Immunisation
 
-> *Parts 1.1–1.3 built the empirical case and the motivating intuition. Part 1.4 provides the mathematical vocabulary. We introduce the formal definition of immunisation — primarily following Rosati et al. (2024) — and then enrich it with a complementary geometric perspective from the condition number literature. We close with a set of careful preliminary considerations, drawn from two critical papers, that every reader should carry into the deeper technical sections of this tutorial.*
+> *Parts 1.1–1.3 built the empirical case and the motivating intuition. Part 1.4 provides the mathematical vocabulary. We introduce the formal definition of immunisation — primarily following Rosati et al. (2024). We close with a set of careful preliminary considerations, drawn from two critical papers, that every reader should carry into the deeper technical sections of this tutorial.*
 
 ---
 
@@ -8,9 +8,9 @@
 
 Before the Rosati et al. (2024) paper, work on defending aligned models against harmful fine-tuning proceeded without shared definitions. Each paper chose its own evaluation protocol, its own attack benchmark, and its own notion of "success." The result was a literature where results were effectively incomparable: a method that looked impressive on one paper's evaluation might have looked mediocre on another's, not because of a real performance difference but because the questions being asked were different.
 
-Rosati et al. make a pointed observation: without formal conditions, future papers could present defences that completely ruin model capability while appearing safe, or defences that generalise to the specific attack used in evaluation but collapse against any other. The formalisation does not solve the problem — the field is still working toward truly satisfactory immunisation — but it provides the shared language without which progress cannot be tracked.
+Rosati et al. make a pointed observation: without formal conditions, future papers could present defences that completely ruin model capability while appearing safe, or defences that generalise to the specific attack used in evaluation but collapse against any other. **The formalisation does not solve the problem — the field is still working toward truly satisfactory immunisation — but it provides the shared language without which progress cannot be tracked.**
 
-The formalism centres on a single key insight: **the relevant quantity is not "does the defence work?" but "does the defence work against an attacker with a given compute budget?"** This framing is what elevates immunisation above generic notions of robustness. A defence that holds for 50 fine-tuning steps but fails at 500 is different from a defence that holds for 50,000 steps. The right level of protection depends on the realistic capabilities of the adversary, not on a single evaluation snapshot.
+> The formalism centres on a single key insight: **the relevant quantity is not "does the defence work?" but "does the defence work against an attacker with a given compute budget?"** This framing is what elevates immunisation above generic notions of robustness. A defence that holds for 50 fine-tuning steps but fails at 500 is different from a defence that holds for 50,000 steps. The right level of protection depends on the realistic capabilities of the adversary, not on a single evaluation snapshot.
 
 ---
 
@@ -106,51 +106,7 @@ The four conditions are not equally hard. Stability is routinely achieved: most 
 
 ---
 
-### 1.4.4 An Alternative Lens: Immunisation as Differential Conditioning of the Hessian
-
-The Rosati framework defines immunisation through *behavioural* conditions: what the model does or does not do under attack. A complementary and geometrically richer definition comes from a perspective on the loss landscape itself.
-
-The key insight, formalised in the condition number paper (Boursinos & Iosifidis, 2023), is that the speed at which gradient descent converges on a task is governed by the **condition number** of the Hessian of the loss:
-
-$$\kappa(\mathbf{H}) = \frac{\sigma_{\max}(\mathbf{H})}{\sigma_{\min}(\mathbf{H})},$$
-
-where $\sigma_{\max}$ and $\sigma_{\min}$ are the largest and smallest singular values of the Hessian, respectively. Recall from standard optimisation theory that the convergence of gradient descent satisfies:
-
-$$\|\mathbf{w}_t - \mathbf{w}^*\|^2 \leq \left(1 - \frac{1}{\kappa(\mathbf{H})}\right)^t \|\mathbf{w}_0 - \mathbf{w}^*\|^2.$$
-
-When $\kappa$ is large (ill-conditioned), the factor $(1 - 1/\kappa)$ is close to 1, and convergence is painfully slow. When $\kappa \approx 1$ (well-conditioned), the factor approaches 0 and convergence is rapid. An attacker using gradient descent on an ill-conditioned loss landscape may need exponentially more steps to reach a given harmful performance level.
-
-The immunisation problem, from this perspective, becomes: **engineer the feature extractor $\theta$ such that the harmful task's Hessian $\mathbf{H}_H(\theta)$ is maximally ill-conditioned while the benign task's Hessian $\mathbf{H}_P(\theta)$ remains well-conditioned.** Formally, the three conditions are:
-
-**(a)** The immunised feature extractor $\theta^I$ should make fine-tuning on the harmful task significantly harder than an identity baseline:
-
-$$\kappa\!\left(\nabla^2_\mathbf{w} \mathcal{L}(\mathcal{D}_H, \mathbf{w}, \theta^I)\right) \gg \kappa\!\left(\nabla^2_\mathbf{w} \mathcal{L}(\mathcal{D}_H, \mathbf{w}, \mathbf{I})\right). \tag{5'}$$
-
-**(b)** Fine-tuning on the primary benign task should be no harder after immunisation:
-
-$$\kappa\!\left(\nabla^2_\omega \mathcal{L}(\mathcal{D}_P, \omega, \theta^I)\right) \leq \kappa\!\left(\nabla^2_\omega \mathcal{L}(\mathcal{D}_P, \omega, \mathbf{I})\right). \tag{6'}$$
-
-**(c)** The immunised model should maintain competitive task performance on the primary dataset:
-
-$$\min_{\omega, \theta} \mathcal{L}(\mathcal{D}_P, \omega, \theta) \approx \min_\omega \mathcal{L}(\mathcal{D}_P, \omega, \theta^I). \tag{7'}$$
-
-These three conditions map directly onto Rosati's framework: (5') is resistance, (6') is trainability, and (7') is stability. The condition number perspective is richer because it provides a *single differentiable quantity* — the condition number of the task Hessian — that can be optimised during training. The resulting immunisation objective is:
-
-$$\min_{\omega, \theta}\; \mathcal{R}_{\text{ill}}(\mathbf{H}_H(\theta)) + \mathcal{R}_{\text{well}}(\mathbf{H}_P(\theta)) + \mathcal{L}(\mathcal{D}_P, \omega, \theta), \tag{11}$$
-
-where $\mathcal{R}_{\text{ill}}$ is a regulariser that maximises $\kappa(\mathbf{H}_H)$ and $\mathcal{R}_{\text{well}}$ is a regulariser that minimises $\kappa(\mathbf{H}_P)$. The paper proves that these regularisers have **monotone gradient updates**: applying a single gradient step of $\mathcal{R}_{\text{ill}}$ strictly increases $\kappa(\mathbf{H}_H)$, and a single gradient step of $\mathcal{R}_{\text{well}}$ strictly decreases $\kappa(\mathbf{H}_P)$. This theoretical guarantee does not require convexity, making it broadly applicable.
-
-The Relative Immunisation Ratio (RIR) provides a single scalar evaluation metric for this framework:
-
-$$\text{RIR} \;\triangleq\; \frac{\kappa(\mathbf{H}_H(\theta^I)) \;/\; \kappa(\mathbf{H}_H(\mathbf{I}))}{\kappa(\mathbf{H}_P(\theta^I)) \;/\; \kappa(\mathbf{H}_P(\mathbf{I}))}.$$
-
-An RIR $> 1$ means the harmful task has become harder relative to the benign task — the immunisation is working asymmetrically, as intended. The denominator guards against the degenerate case where both tasks become harder equally, which would indicate that the feature extractor has simply been damaged.
-
-The condition number framing is not limited to the toy linear models where the theory was proven. Empirically, it transfers to deep networks. A striking result: immunising the last two blocks of a ViT model yields an RIR of up to 41, while ImageNet accuracy *increases* after immunisation — the constraint imposed by the harmful-task regulariser appears to act as a beneficial feature-space compression. This suggests that the ill-conditioning of the harmful Hessian and the improvement of the benign task are not in fundamental opposition.
-
----
-
-### 1.4.5 A Note on Normative Scope: What Immunisation Is and Is Not
+### 1.4.4 A Note on Normative Scope: What Immunisation Is and Is Not
 
 The Rosati framework is explicit about a limitation that deserves to be stated clearly at the outset.
 
@@ -172,7 +128,7 @@ Before proceeding to the technical methods in the later parts of this tutorial, 
 
 #### 1.4.6.1 The G-Effect: The Gradient Perspective on Unlearning and Retention (Wang et al., 2025)
 
-Wang et al. (2025) propose a diagnostic tool called the **G-effect**: an analytical approximation of the performance change induced by an unlearning objective, computed as a dot product of gradients without running full training. Formally, for a risk metric $\mathcal{R}$ and an unlearning objective applied to parameters $\theta$, the G-effect on dataset $\mathcal{D}'$ is:
+Wang et al. (2025), in their paper "Rethinking LLM Unlearning Objectives: A Gradient Perspective and Go Beyond" propose a diagnostic tool called the **G-effect**: an analytical approximation of the performance change induced by an unlearning objective, computed as a dot product of gradients without running full training. Formally, for a risk metric $\mathcal{R}$ and an unlearning objective applied to parameters $\theta$, the G-effect on dataset $\mathcal{D}'$ is:
 
 $$\text{G-effect}(\mathcal{D}'; \mathcal{D}_u) \approx -\nabla_\theta \mathcal{R}(\mathcal{D}'; \theta)^\top \cdot \nabla_\theta \mathcal{L}_u(\theta; \mathcal{D}_u),$$
 
