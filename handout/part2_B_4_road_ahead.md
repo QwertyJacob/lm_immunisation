@@ -51,16 +51,44 @@ This is early-stage work, but it is conceptually important because it represents
 
 The Rosati framework defines immunisation through *behavioural* conditions: what the model does or does not do under attack. A complementary and geometrically richer definition comes from a perspective on the loss landscape itself.
 
+**The condition number**
+
+Given a general matrix S, the condition number  is defined as
+
+$$\kappa(\mathbf{S}) \triangleq \|\mathbf{S}\|_{2} \|\mathbf{S}^{\dagger}\|_{2} = \sigma_{\mathbf{S}}^{\text{max}} / \sigma_{\mathbf{S}}^{\text{min}}, \tag{1}$$
+
+where $\|\cdot\|_2$ is the spectral norm, which is the largest singular value of the matrix, and $\mathbf{S}^{\dagger}$ is the pseudoinverse of $\mathbf{S}$.
+
+
+Recall what the pseudoinverse $S^{\dagger}$ is: for a matrix S with SVD $S = U \Sigma V^{\top}$, the pseudoinverse is $S^{\dagger} = V \Sigma^{\dagger} U^{\top}$ where $\Sigma^{\dagger}$ is obtained by taking the reciprocal of each nonzero singular value in $\Sigma$ and transposing the resulting matrix. So if $\Sigma$ has singular values σ₁, σ₂, ..., σₘᵢₙ (where σ₁ ≥ σ₂ ≥ ... ≥ σₘᵢₙ > 0), then $\Sigma^{\dagger}$ will have singular values $\frac{1}{\sigma_{min}}, \frac{1}{\sigma_{min+1}}, \ldots, \frac{1}{\sigma_{max}}$
+
+That's why equation (1) simplifies so cleanly:
+
+$$\kappa(S) = \sigma_{\text{max}} / \sigma_{\text{min}}$$
+
+> **The geometric intuition**: The condition number is asking: *how much does the matrix distort space anisotropically?* If κ ≈ 1, the matrix stretches all directions roughly equally (like a scaled rotation). If κ ≫ 1, it massively stretches some directions while nearly collapsing others — this is what makes gradient descent slow, because a gradient step that's well-sized for the "flat" direction is tiny relative to the "steep" direction, or vice versa.
+
+**In the context of immunisation**, the matrix we care about is the Hessian of the loss landscape with respect to the model parameters. The condition number of this Hessian captures how "twisted" the loss landscape is around a given point. A high condition number means there are directions in parameter space where the loss changes very rapidly (steep) and others where it changes very slowly (flat). This anisotropy makes optimization difficult, as gradient descent struggles to find a step size that works well for all directions.
+
 The key insight, formalised in the condition number paper (Boursinos & Iosifidis, 2023), is that the speed at which gradient descent converges on a task is governed by the **condition number** of the Hessian of the loss:
 
 $$\kappa(\mathbf{H}) = \frac{\sigma_{\max}(\mathbf{H})}{\sigma_{\min}(\mathbf{H})},$$
 
-where $\sigma_{\max}$ and $\sigma_{\min}$ are the largest and smallest singular values of the Hessian, respectively. Recall from standard optimisation theory that the convergence of gradient descent satisfies:
+where $\sigma_{\max}$ and $\sigma_{\min}$ are the largest and smallest singular values of the Hessian, respectively. 
+
+
+Recall from standard optimisation theory that the convergence of gradient descent satisfies:
 
 $$\|\mathbf{w}_t - \mathbf{w}^*\|^2 \leq \left(1 - \frac{1}{\kappa(\mathbf{H})}\right)^t \|\mathbf{w}_0 - \mathbf{w}^*\|^2.$$
 
 When $\kappa$ is large (ill-conditioned), the factor $(1 - 1/\kappa)$ is close to 1, and convergence is painfully slow. When $\kappa \approx 1$ (well-conditioned), the factor approaches 0 and convergence is rapid. An attacker using gradient descent on an ill-conditioned loss landscape may need exponentially more steps to reach a given harmful performance level.
 
+> Read (2) as: *how far am I from the solution after t steps?* The right side is your initial distance $\|\mathbf{w}_0 - \mathbf{w}^*\|^2$, multiplied by a shrinkage factor raised to the power $t$. Since $(1 - \frac{\sigma^{\min}}{\sigma^{\max}})$ is between 0 and 1, the distance geometrically shrinks each step. But the rate of shrinkage depends on the ratio $\sigma^{\min}/\sigma^{\max}$, which is exactly $1/\kappa$. If κ is large (ill-conditioned), this ratio is small, and the shrinkage factor is close to 1, meaning you barely make progress each step. If κ ≈ 1 (well-conditioned), the ratio is close to 1, and the shrinkage factor is close to 0, meaning you rapidly converge to the solution.
+
+**Spoiler**: This is exactly the intuition behind the whole paper: making the harmful task have a huge condition number → making fine-tuning on it painfully slow.
+
+
+**The setting**
 
 Suppose to have a representational backbone (the feature exctractor):
 $$f_{\theta}: \mathbb{R}^{D_{\text{in}}} \to \mathbb{R}^{D_{\text{hid}}}$$
@@ -96,11 +124,36 @@ $$\kappa\!\left(\nabla^2_\omega \mathcal{L}(\mathcal{D}_P, \omega, \theta^I)\rig
 
 $$\min_{\omega, \theta} \mathcal{L}(\mathcal{D}_P, \omega, \theta) \approx \min_\omega \mathcal{L}(\mathcal{D}_P, \omega, \theta^I). \tag{7'}$$
 
-These three conditions map directly onto Rosati's framework: (5') is resistance, (6') is trainability, and (7') is stability. The condition number perspective is richer because it provides a *single differentiable quantity* — the condition number of the task Hessian — that can be optimised during training. The resulting immunisation objective is:
+These three conditions map directly onto Rosati's framework: (5') is resistance, (6') is trainability, and (7') is stability. The condition number perspective is richer because it provides a *single differentiable quantity* — the condition number of the task Hessian — that can be optimised during training. 
+
+
+
+**The immunisation objective** in Zhang et al. is:
 
 $$\min_{\omega, \theta}\; \mathcal{R}_{\text{ill}}(\mathbf{H}_H(\theta)) + \mathcal{R}_{\text{well}}(\mathbf{H}_P(\theta)) + \mathcal{L}(\mathcal{D}_P, \omega, \theta), \tag{11}$$
 
 where $\mathcal{R}_{\text{ill}}$ is a regulariser that maximises $\kappa(\mathbf{H}_H)$ and $\mathcal{R}_{\text{well}}$ is a regulariser that minimises $\kappa(\mathbf{H}_P)$. The paper proves that these regularisers have **monotone gradient updates**: applying a single gradient step of $\mathcal{R}_{\text{ill}}$ strictly increases $\kappa(\mathbf{H}_H)$, and a single gradient step of $\mathcal{R}_{\text{well}}$ strictly decreases $\kappa(\mathbf{H}_P)$. This theoretical guarantee does not require convexity, making it broadly applicable.
+
+
+
+The regulariser is formalised in [Nenov et al.](https://arxiv.org/pdf/2410.00169):
+
+$$\mathcal{R}_{\text{well}}(\mathbf{S}) = \frac{1}{2} \|\mathbf{S}\|_{2}^{2} - \frac{1}{2p} \|\mathbf{S}\|_{F}^{2}, \tag{3}$$
+
+Staring enough at this formula, we realise that it is mind-blowing:
+- The first term $\|\mathbf{S}\|_{2}^{2}$ is the square of the spectral norm, which is the largest singular value squared. 
+- The second term $\|\mathbf{S}\|_{F}^{2}$ is the square of the Frobenius norm, which is the sum of squares of all singular values. (*This follows from the fact that the Frobenius norm is invariant under orthogonal transformations, so* $\|\mathbf{S}\|_F^2 = \|\mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^\top\|_F^2 = \|\boldsymbol{\Sigma}\|_F^2 = \sum_i \sigma_i^2$.) Dividing by $p$ (the number of singular values) gives us the average of the squares of the singular values.
+- Therefore $\mathcal{R}_{\text{well}}(\mathbf{S})$ is essentially the difference between the largest singular value squared and the average singular value squared. This means that if we were to *minimise* $\mathcal{R}_{\text{well}}$, we would penalise matrices where the largest singular value is much larger than the average, which is exactly what we want to do if we would like to reduce the condition number. In other words, this regulariser encourages the singular values to be more uniform, which in turn reduces the condition number and makes the optimization landscape more well-behaved for gradient descent.
+
+So Zheng et al. use this intuition as is, and -most importantly, they also use it in the opposite direction: they tell a neural net to augment this quantity, so that further fine-tuning has a harder time converging:
+
+$$\mathcal{R}_{\text{ill}}(\mathbf{S}) = \frac{1}{\frac{1}{2k} \left\| \mathbf{S} \right\|_F^2 - \frac{1}{2} \left( \sigma_{\mathbf{S}}^{\min} \right)^2}, \tag{12}$$
+
+Now this regularises is reciprocal or opposite to the good regularisation term in Eq. (3), the basic message is: minimising (12) takes the condition number up. And we are minimising (12) for, or maximising the condition number of, the matrix  $\boldsymbol{H}_{\texttt{H}}(\theta)$, which is the hessian of the loss function for the harmful task, not only for the classification head, but, in their nice setting, for the whole pipeline (feature extractor + classifier).
+
+
+Although their setting is a bit complex and has some important assumptions (like linearity of the classifier, use of an $\ell_2$  loss, etc.) it still works well in practice. 
+
 
 The paper introduces the **Relative Immunisation Ratio (RIR)**, a single number that captures both sides of the immunisation goal:
 
