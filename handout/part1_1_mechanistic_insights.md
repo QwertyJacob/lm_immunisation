@@ -70,7 +70,7 @@ then $W_{\text{attack}}$ has had the top-$k$ alignment directions removed. The a
 >
 > ASR on 100 Adv Bench prompts. Utility uses zero shot accuracy on 6 benchmarks (EleutherAI LM Harness). Blue circle corresponds to remove the top-1 safety direction; orange triangles remove some between the top-1 and top-100 directions. Magenta square is the original aligned model.
 
-This result has an important algebraic footnote worth stating clearly: $\text{Proj}_k$ is indeed a projection because $(U_{:k}U_{:k}^\top)^2 = U_{:k}(U_{:k}^\top U_{:k})U_{:k}^\top = U_{:k} I_k U_{:k}^\top = U_{:k}U_{:k}^\top$ — the middle step uses the fact that $U$'s columns are orthonormal. So it is an idempotent operator, and $\text{Proj}_k(\Delta W_{\text{align}})$ gives exactly the component of the alignment update that "lives in" the top-$k$ safety subspace.
+(Geometric side-note:  $\text{Proj}_k$ is indeed a projection because $(U_{:k}U_{:k}^\top)^2 = U_{:k}(U_{:k}^\top U_{:k})U_{:k}^\top = U_{:k} I_k U_{:k}^\top = U_{:k}U_{:k}^\top$ — the middle step uses the fact that $U$'s columns are orthonormal. So it is an idempotent operator, and $\text{Proj}_k(\Delta W_{\text{align}})$ gives exactly the component of the alignment update that "lives in" the top-$k$ safety subspace.)
 
 > **Mechanistic summary.** The alignment update $\Delta W_{\text{align}}$ is low-rank in practice. Safety is not a diffuse property of the whole parameter tensor; it is a sparse directional feature that a targeted perturbation can nullify.
 

@@ -132,11 +132,52 @@ The activation perturbation "lowers the threshold" for the token-level attack: i
 
 ### 1.2.3 Scenario 2 — Innocuous Fine-Tuning Is Enough
 
-The second brittleness result is arguably more disturbing from a deployment perspective, because it requires no adversarial intent. Łucki et al. (2024) in *An Adversarial Perspective on Machine Unlearning for AI Safety* and Perin et al. (2025) in *LoX* both document the same finding from different angles: **fine-tuning an aligned or unlearned model on a completely benign downstream task — mathematics, text classification, sentiment analysis — reliably degrades safety**.
+The second brittleness result is arguably more disturbing from a deployment perspective, because it requires no adversarial intent. Łucki et al. (2024) in *An Adversarial Perspective on Machine Unlearning for AI Safety* and Perin et al. in [*LoX: Low-Rank Extrapolation Robustifies LLM Safety Against Fine-tuning*
+*Perin* et al., 2025 ](https://arxiv.org/pdf/2506.15606) both document the same finding from different angles: **fine-tuning an aligned or unlearned model on a completely benign downstream task — mathematics, text classification, sentiment analysis — reliably degrades safety**.
 
 #### 1.2.3.1 The LoX Measurement: Alignment Energy Dispersal
 
-Perin et al. quantify this with their $R_{\text{align}}$ and $R_{\text{ft}}$ metrics from Part 1 (Section 1.3), applied to a concrete experiment. They align LLaMA-2-7B with DPO on HH-RLHF, then fine-tune on GSM8K (elementary mathematics). They track the ratio $R_{\text{ft}}/R_{\text{align}}$ as a function of $k$ (the number of top singular directions used to define the safety subspace).
+Perin et al. do a very similar analysis of alignment ranks as in Wei et al.'s assessing the britleness paper.
+
+*We consider a language model  $f_{\theta}$ , where  $\theta := \{W^i\}_{i=1}^L$  is a family of real matrices that parameterize the model and L the number of weight matrices in the model. We denote the base weights by  $\theta_{\text{base}} = \{W^i_{\text{base}}\}_{i=1}^L$ , the aligned weights by  $\theta_{\text{align}} = \{W^i_{\text{base}} + \Delta W^i_{\text{align}}\}_{i=1}^L$ , and the fine-tuned weights by  $\theta_{\text{ft}} = \{W^i_{\text{base}} + \Delta W^i_{\text{align}}+\Delta W^i_{\text{ft}}\}_{i=1}^L$ . For simplicity, we will occasionally drop matrix indices.*
+
+Take $\Delta W_{\text{align}}$ and compute its SVD, giving us
+$$U \times S \times V^{\top} = \Delta W_{\text{align}}$$
+
+with the columns of $U$ sorted by the corresponding singular values in $S$. So the safety subspace above is composed by the top-$k$ left singular vectors of $\Delta W_{\text{align}}$, which we denote as $U_{:k}$.
+
+Now use that safety subspace to define a projection operator that projects any matrix $M$ onto the safety subspace of $U_{:k}$:
+
+$$\operatorname{Proj}_{k}(M) = (U_{:k}U_{:k}^{\top})M,$$
+
+So $\text{Proj}_k(M)$ gives us a projection of $M$ that maps all and only the transformations made by $M$ that act over the safety subspace.
+
+Now if we take the Frobenius norm of $\text{Proj}_k(M)$, we get a scalar measure of how much of the "energy" of $M$ is concentrated in the safety subspace. The Frobenius norm is defined as:
+
+$$\|M\|_F = \sqrt{\sum_{i,j} M_{ij}^2}$$
+and we denote it as $\|\cdot\|$  for simplicity. So $\|\text{Proj}_k(M)\|$ measures the overall magnitude of the transformations in $M$ that lie in the safety subspace.
+
+
+
+Perin et al. propose two metrics to measure the **safety knowledge (i. e. the information obtained during safety alignment)** in parameter space, before and after fine-tuning the model:
+
+$$R_{\text{align}} = \frac{\|\text{Proj}_{k}(\Delta W_{\text{align}})\|}{\|\Delta W_{\text{align}}\|}, \tag{1}$$
+
+
+$$R_{\rm ft} = \frac{\|\text{Proj}_k(\Delta W_{\rm align} + \Delta W_{\rm ft})\|}{\|\Delta W_{\rm align} + \Delta W_{\rm ft}\|},\tag{2}$$
+
+> *We focus on obtaining the ratio  $R_{\rm ft}/R_{\rm align}$  to quantify how much *safety knowledge* has diminished after fine-tuning, relative to the base model. Higher values suggest that the safety knowledge has not been strongly disturbed, while lower values signify the opposite.*
+
+**Side note**: $R_{\text{align}} < 1$ in general!
+Since $\text{Proj}_k(\Delta W_{\text{align}})$ only reconstructs the component of $\Delta W_{\text{align}}$ lying in the top-$k$ left singular subspace, and the remaining singular components contribute to $\|\Delta W_{\text{align}}\|$, we get $\|\text{Proj}_k(\Delta W_{\text{align}})\| \leq \|\Delta W_{\text{align}}\|$, with equality only when $k = r$ (full rank). 
+
+**So $R_{\text{align}} \in [0, 1]$ measures **how concentrated** the alignment update is in its top-$k$ left singular directions**.
+>
+> The interesting comparison is then $R_{\text{ft}}/R_{\text{align}}$: after fine-tuning, does the total weight update $\Delta W_{\text{align}} + \Delta W_{\text{ft}}$ still have its *alignment* energy concentrated in those same top-$k$ directions? If fine-tuning "rotates" the weight matrix away from $U_{:k}$, this ratio drops below 1, signaling safety degradation.
+
+
+
+Perin et al. did a concrete experiment. They align LLaMA-2-7B with DPO on HH-RLHF, then fine-tune on GSM8K (elementary mathematics). They track the ratio $R_{\text{ft}}/R_{\text{align}}$ as a function of $k$ (the number of top singular directions used to define the safety subspace).
 
 The result: **$R_{\text{ft}}/R_{\text{align}} < 1$ in all cases**, regardless of $k$ and regardless of the number of alignment examples used. Fine-tuning on GSM8K — a dataset with zero harmful content — disperses the alignment energy away from the top-$k$ safety directions. More alignment examples make this worse more slowly, but never stop it:
 

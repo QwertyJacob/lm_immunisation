@@ -5,7 +5,7 @@ taken from [*LoX: Low-Rank Extrapolation Robustifies LLM Safety Against Fine-tun
 
 ## Extracting Low-rank Subspaces.
 
-We consider a language model  $f_{\theta}$ , where  $\theta := \{W^i\}_{i=1}^L$  is a family of real matrices that parameterize the model and L the number of weight matrices in the model. We denote the base weights by  $\theta_{\text{base}} = \{W^i_{\text{base}}\}_{i=1}^L$ , the aligned weights by  $\theta_{\text{align}} = \{W^i_{\text{base}} + \Delta W^i_{\text{align}}\}_{i=1}^L$ , and the fine-tuned weights by  $\theta_{\text{ft}} = \{W^i_{\text{base}} + \Delta W^i_{\text{align}}\}_{i=1}^L$ . For simplicity, we will occasionally drop matrix indices.
+We consider a language model  $f_{\theta}$ , where  $\theta := \{W^i\}_{i=1}^L$  is a family of real matrices that parameterize the model and L the number of weight matrices in the model. We denote the base weights by  $\theta_{\text{base}} = \{W^i_{\text{base}}\}_{i=1}^L$ , the aligned weights by  $\theta_{\text{align}} = \{W^i_{\text{base}} + \Delta W^i_{\text{align}}\}_{i=1}^L$ , and the fine-tuned weights by  $\theta_{\text{ft}} = \{W^i_{\text{base}} + \Delta W^i_{\text{align}}+\Delta W^i_{\text{ft}}\}_{i=1}^L$ . For simplicity, we will occasionally drop matrix indices.
 
 
 We consider the Singular Value Decomposition (SVD) of $\Delta W_{\text{align}}$, expressed as a summation of r matrices with a rank of 1 
@@ -13,7 +13,7 @@ We consider the Singular Value Decomposition (SVD) of $\Delta W_{\text{align}}$,
 $$\Delta W_{\text{align}} = \sum_{i=1}^{r} s_{ii} U_i V_i^\top$$
 
 
-where  $U_i$  and  $V_i$  denote the *i*-th columns of the matrices U and V,  respectively, and  $s_{ii}$  represents the i, i-th entry of the matrix S. (the columns of U and V are the left-singular vectors and right-singular vectors)
+where  $U_i$  and  $V_i$  denote the *i*-th columns of the matrices U and V,  respectively, and  $s_{ii}$  represents the i, i-th entry of the matrix S. (The columns of U and V are the left-singular vectors,associated with the output space of $\Delta W_{\text{align}}$ and right-singular vectors, associated with the input space of $\Delta W_{\text{align}}$.)
 
 > **With a slight abuse of notation, we refer to the matrices  $s_{ii}U_iV_i^{\top}$ , sorted by  $s_{ii}$ , as ranks of M.**
 
