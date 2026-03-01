@@ -22,7 +22,7 @@ These are not independent problems. They share the same root: an aligned model's
 
 ### 1.2.2 Scenario 1 — Random Activation Injection Breaks Safety Without Touching Weights
 
-#### 1.2.2.1 The ASA Attack
+####  The ASA Attack
 
 The most surprising brittleness result is arguably the most minimalist attack: **Activation Steering Attack (ASA)**, introduced by Gu et al. (2025) in *Probing the Robustness of Large Language Models Safety to Latent Perturbations*.
 
@@ -38,7 +38,7 @@ and the model autoregressively decodes from this modified state onward.
 
 No weights are changed. No training is performed. The attack costs a single forward pass.
 
-#### 1.2.2.2 Measuring the Damage: MASR, LASR, PASR
+####   Measuring the Damage: MASR, LASR, PASR
 
 ![](figs/asa_attack.png)
 > Gu et al. (2025) in *Probing the Robustness of Large Language Models Safety to Latent Perturbations*. ArXiv preprint.
@@ -64,7 +64,7 @@ The results, evaluated across 12 open-source models, are striking. Consider a sa
 
 The MASR of the aligned (Instruct) models under random activation injection approaches that of their unaligned (Base) counterparts. The gap — the "safety margin" that alignment bought — is essentially zero from the MASR perspective. The model still passes standard input-output evaluations, but its internal representations are not locally robust.
 
-#### 1.2.2.3 The NLL Probe: What Is the Attack Actually Doing?
+####  The NLL Probe: What Is the Attack Actually Doing?
 
 To understand the mechanism, Gu et al. define a **Negative Log-Likelihood (NLL) probe**. Given the original safe response $y$ the model would produce for a harmful prompt $x$ without attack, the NLL is:
 
@@ -82,7 +82,7 @@ Across all four models, ASA consistently and substantially raises the NLL on the
 
 
 
-#### 1.2.2.4 The Gradient-Guided Upgrade: $\text{ASA}_\text{grad}$
+####  The Gradient-Guided Upgrade: $\text{ASA}_\text{grad}$
 
 If random perturbations are already sufficient, **gradient-guided perturbations are devastating**. $\text{ASA}_\text{grad}$  replaces the random $\delta$ with a perturbation computed from the gradient of the NLL with respect to a target harmful suffix $y^*$ (e.g., "Here are steps to make a bomb"):
 
@@ -132,10 +132,10 @@ The activation perturbation "lowers the threshold" for the token-level attack: i
 
 ### 1.2.3 Scenario 2 — Innocuous Fine-Tuning Is Enough
 
-The second brittleness result is arguably more disturbing from a deployment perspective, because it requires no adversarial intent. Łucki et al. (2024) in *An Adversarial Perspective on Machine Unlearning for AI Safety* and Perin et al. in [*LoX: Low-Rank Extrapolation Robustifies LLM Safety Against Fine-tuning*
-*Perin* et al., 2025 ](https://arxiv.org/pdf/2506.15606) both document the same finding from different angles: **fine-tuning an aligned or unlearned model on a completely benign downstream task — mathematics, text classification, sentiment analysis — reliably degrades safety**.
+The second brittleness result is arguably more disturbing from a deployment perspective, because it requires no adversarial intent. Perin et al. in [*LoX: Low-Rank Extrapolation Robustifies LLM Safety Against Fine-tuning*
+*Perin* et al., 2025 ](https://arxiv.org/pdf/2506.15606) finds that **fine-tuning an aligned or unlearned model on a completely benign downstream task — mathematics, text classification, sentiment analysis — reliably degrades safety**.
 
-#### 1.2.3.1 The LoX Measurement: Alignment Energy Dispersal
+####   The LoX Measurement: Alignment Energy Dispersal
 
 Perin et al. do a very similar analysis of alignment ranks as in Wei et al.'s assessing the britleness paper.
 
@@ -173,13 +173,21 @@ Since $\text{Proj}_k(\Delta W_{\text{align}})$ only reconstructs the component o
 
 **So $R_{\text{align}} \in [0, 1]$ measures **how concentrated** the alignment update is in its top-$k$ left singular directions**.
 >
-> The interesting comparison is then $R_{\text{ft}}/R_{\text{align}}$: after fine-tuning, does the total weight update $\Delta W_{\text{align}} + \Delta W_{\text{ft}}$ still have its *alignment* energy concentrated in those same top-$k$ directions? If fine-tuning "rotates" the weight matrix away from $U_{:k}$, this ratio drops below 1, signaling safety degradation.
+> The interesting comparison is then $R_{\text{ft}}/R_{\text{align}}$: after fine-tuning, does the total weight update $\Delta W_{\text{align}} + \Delta W_{\text{ft}}$ still have its *alignment* energy concentrated in those same top-$k$ directions? If fine-tuning "rotates" the weight matrix away from $U_{:k}$, this ratio drops below 1.
+
+> This **$R_{\text{ft}}/R_{\text{align}} < 1$** means the new parameteers are not projected anymore to the top-$k$ singular subspace of the alignment update. Although this is empirically observed as a degradation in safety -and that is the main message we want to give know. It is worth suggesting that this misalignment is not harmful per-se: we are not rotating against alignment in general, but againts that particular top-rank alignment. Maybe a less top-k concentrated alignment could be more robust to fine-tuning, as we will see in the next section...
 
 
 
 Perin et al. did a concrete experiment. They align LLaMA-2-7B with DPO on HH-RLHF, then fine-tune on GSM8K (elementary mathematics). They track the ratio $R_{\text{ft}}/R_{\text{align}}$ as a function of $k$ (the number of top singular directions used to define the safety subspace).
 
 The result: **$R_{\text{ft}}/R_{\text{align}} < 1$ in all cases**, regardless of $k$ and regardless of the number of alignment examples used. Fine-tuning on GSM8K — a dataset with zero harmful content — disperses the alignment energy away from the top-$k$ safety directions. More alignment examples make this worse more slowly, but never stop it:
+
+![](figs/safety_energy_lox_paper.png)
+> [*LoX: Low-Rank Extrapolation Robustifies LLM Safety Against Fine-tuning* 
+*Perin* et al., COLM 2025 ](https://arxiv.org/pdf/2506.15606)
+>
+> *Comparison of ASR difference before and after fine-tuning on GSM8K ("Safety Degradation") versus the ratio  $R_{\rm ft}/R_{\rm align}$ . Marker size represents the number of alignment examples (22.5k, 32.8k, 45k, 65.6k). Higher  $R_{\rm ft}/R_{\rm align}$  correlates with lower safety degradation, suggesting the role of top-ranks in safety robustness.*
 
 | Alignment examples | ASR after GSM8K fine-tuning |
 |---|---|
@@ -192,21 +200,6 @@ Even the most heavily aligned model in the grid reaches 15% Attack Success Rate 
 
 This is the parameter-space manifestation of Part 1's Insight 5 (task vector geometry): the fine-tuning task vector $\tau_{\text{ft}}$ is not perfectly orthogonal to the anti-safety direction, and even a small projection is enough to degrade a safety signal that was already sparse and shallow.
 
-#### 1.2.3.2 The ILU Measurement: Unlearning Collapses Under Fine-Tuning
-
-For unlearning specifically, Łucki et al. provide the clearest illustration. They apply NPO and RMU to remove hazardous knowledge from Zephyr-7B-beta on the WMDP benchmark, then fine-tune on GSM8K or AGNews. The forget quality (FQ = 1 - accuracy on the WMDP-Bio evaluation set, higher = better forgetting) degrades rapidly as fine-tuning progresses:
-
-- For NPO, FQ drops from ~0.52 at zero fine-tuning to ~0.37 after sufficient GSM8K fine-tuning — a 0.15 absolute drop, nearly recovering the pre-unlearn accuracy on the forget set. On MUSE-News, NPO's VerbMem score increases from 2.53 to 57.27 after WinoGrande fine-tuning, almost matching the pre-unlearn memorisation level of 58.40.
-- For RMU, the FQ drop under relearning attacks is even steeper: 0.32 absolute.
-
-The task-vector diagnosis from Part 1 explains this directly. For NPO:
-
-$$\cos\!\left(\angle(\tau_{\text{NPO} \to \text{ft}},\, \tau_{\text{ft}})\right) = 0.16 > 0,$$
-
-meaning the drift introduced by fine-tuning is co-aligned with the fine-tuning direction — the fine-tuning step is "undoing" the unlearning update, because both live in the same dominant singular subspaces. The unlearning direction $\tau_{\text{NPO}}$ is not robust to fine-tuning because it was written into the most malleable part of the weight space — exactly the part that gradient descent explores next.
-
-The brittleness is systematic across fine-tuning tasks. NPO and RMU exhibit consistent FQ degradation whether the downstream task is GSM8K, AGNews, SST-2, WinoGrande, MNLI, or QQP. The specific task changes the rate of degradation (Part 1's Insight 5), but not its occurrence.
-
 > **Brittleness verdict on Scenario 2.** Fine-tuning on an entirely benign task is sufficient to substantially degrade both safety alignment and machine unlearning. This is not a corner case — it is the expected outcome given the low-rank, high-malleability structure of the safety update. Any model released as open-weight should be evaluated as if innocuous fine-tuning will occur, because it will.
 
 ---
@@ -215,36 +208,48 @@ The brittleness is systematic across fine-tuning tasks. NPO and RMU exhibit cons
 
 The third scenario is the most expected but still worth stating precisely. When the attacker has access to harmful data and can fine-tune freely, the aligned model offers negligible resistance with standard defences.
 
-#### 1.2.4.1 The Scale of the Attack
+####  The Scale of the Attack
 
-The key empirical finding across multiple papers is how *little* harmful data is needed. Qi et al. (2023) show that fine-tuning GPT-3.5-Turbo on as few as **10 adversarial examples** is sufficient to bypass safety guardrails. On open-weight models with LoRA, a single GPU and 100 malicious question–answer pairs can reduce Llama-2-Chat's refusal rate to approximately 1%.
+The key empirical finding across multiple papers is how *little* harmful data is needed. Qi et al. (2023) in "*Fine-tuning aligned language models compromises safety, even when users do not intend to!*" show that fine-tuning GPT-3.5-Turbo on as few as **10 adversarial examples** is sufficient to bypass safety guardrails:
 
-The LoX paper quantifies the baseline attack success rate on DPO-aligned LLaMA-2-7B. Fine-tuning on the "Pure Bad" dataset (explicitly harmful examples) pushes the ASR from near-zero to **63%** post-fine-tuning. Fine-tuning on the benign Dolly dataset pushes it to **52%**. The adversarial case is worse by 11 percentage points — but the benign case (Scenario 2) is already doing most of the damage.
+> Qi et al. (2023) in "*Fine-tuning aligned language models compromises safety, even when users do not intend to!*". ICRL 2024 
+> ![](figs/hft.png)
+> They did full-parameter fine-tuning following standard SFT procedures.
+![](figs/more_hft.png)
+> Varying epoch number in HFT with 100 samples.
 
-#### 1.2.4.2 The Mechanism: Low-Rank Counteraction
 
-From the weight-space perspective (Part 1's Insight 2), what harmful fine-tuning does is clear: $\Delta W_{\text{ft}}$ counteracts the top-$k$ singular directions of $\Delta W_{\text{align}}$. The alignment update wrote a small, high-energy feature into the weight matrices; the harmful fine-tuning gradient points directly against those directions, because they are simultaneously the most safety-relevant and the most sensitive to gradient updates.
 
-Wei et al.'s pruning/low-rank modification attack shows that this can even be done *without any data at all*: directly removing the top-$k$ singular components of $\Delta W_{\text{align}}$ via SVD produces an immediate, high-ASR jailbreak. Harmful fine-tuning is simply a noisier, gradient-descent version of the same operation.
+> **A crucial observation** Wei et al.'s pruning/low-rank modification attack shows that this can even be done *without any data at all*: directly removing the top-$k$ singular components of $\Delta W_{\text{align}}$ via SVD produces an immediate, high-ASR jailbreak. Harmful fine-tuning is simply a noisier, gradient-descent version of the same operation.
 
-#### 1.2.4.3 The Unlearning Case: Relearning in 60 Examples
+*Side note for pedantic readers*: Even if we do not have measuremts on it so far, we can argue that $\Delta W_\text{ft}$ counteracts the top-$k$ singular directions of $\Delta W_\text{align}$, which are precisely the directions that caused the model to refuse harmful prompts — and therefore the directions that the harmful fine-tuning gradient must move against to reduce its loss. (This is a plausible hypothesis consistent with both the Wei et al,'s pruning result and the Perin et al.'s energy measurements, but the causal mechanism of HFT at the gradient level is not directly demonstrated in the literature cited.  To demonstrate that, however, we should show that the gradient of the harmful loss has its highest inner product with the top-k alignment directions, not just that those directions end up disturbed after training.)
 
-For unlearned models, the worst-case scenario is the **relearning attack**: the adversary fine-tunes on a small sample from the forget set itself. Łucki et al. quantify the damage with just 60 forget-set examples over 1 epoch:
+
+
+####  The Unlearning Case: Relearning in 60 Examples
+
+For unlearned models, the worst-case scenario is the **relearning attack**: the adversary fine-tunes on a small sample from the forget set itself. Wang et al. (ILU paper)  quantify the damage with just 60 forget-set examples over 1 epoch:
 
 | Method | FQ without attack | FQ with relearning | Drop |
 |---|---|---|---|
 | NPO | 0.52 | 0.37 | 0.15 |
 | RMU | 0.68 | 0.36 | **0.32** |
+> *The effectiveness of unlearning, termed 'forget quality' (FQ) is measured by the accuracy of the unlearned model on the WMDP-Bio evaluation set, with lower accuracy indicating better forgetting. Accordingly, we define 'forget quality' as '1 - evaluation accuracy', where a higher value means more effective unlearning.*
+
+![](figs/dolly_unlearning.png)
 
 RMU, despite having stronger baseline forget quality, is nearly fully reversed by 60 examples and 1 epoch of fine-tuning. This is the starkest demonstration of the brittleness: the unlearning was not erasure — it was suppression — and the suppressed knowledge is immediately recoverable by a small gradient signal in the right direction.
 
-#### 1.2.4.4 Benign vs. Harmful: The Collapse Is Mostly in Scenario 2
+#### Benign vs. Harmful: The Collapse Is Mostly in Scenario 2
 
-One of the most important quantitative points to make to a tutorial audience is this: **comparing LoX's results on Dolly (benign, 52% ASR) versus Pure Bad (harmful, 63% ASR) shows that the majority of the safety collapse happens even without harmful data.** The explicitly adversarial signal adds only about 11 percentage points on top of what benign fine-tuning already does.
+> The **LoX paper** quantifies the baseline attack success rate on DPO-aligned LLaMA-2-7B. Fine-tuning on the "Pure Bad" dataset (explicitly harmful examples) pushes the ASR from near-zero to **63%** post-fine-tuning. **And that is not surprising, but the surprise comes when fine-tuning on the benign Dolly (benign) dataset, which pushes it to **52%**!! The adversarial case is worse by 11 percentage points — but the benign case (Scenario 2) is already doing most of the damage.**
 
-This means defending against harmful fine-tuning while being permissive to innocuous fine-tuning — which is the stated goal of most alignment-stage defences — is a harder target than it initially appears: the "innocuous" regime already causes most of the degradation.
 
-> **Brittleness verdict on Scenario 3.** Harmful fine-tuning is highly effective (10–100 examples sufficient), but a substantial fraction of the damage can already be achieved without it. The safety update is too low-rank and too shallow to resist direct counteraction by the harmful gradient.
+One of the most important quantitative points to make is this: **comparing LoX's results on Dolly (benign, 52% ASR) versus Pure Bad (harmful, 63% ASR) shows that the majority of the safety collapse happens even without harmful data.** The explicitly adversarial signal adds only about 11 percentage points on top of what benign fine-tuning already does.
+
+> **This means defending against harmful fine-tuning while being permissive to innocuous fine-tuning — which, as we will see, is the stated goal of most *alignment-stage* defences — is a harder target than it initially appears: the "innocuous" regime already causes most of the degradation.**
+
+> **Brittleness verdict on Scenario 3.** Harmful fine-tuning is highly effective (10–100 examples sufficient), the safety update is too low-rank and too shallow to resist direct counteraction by the harmful gradient. However, **a substantial fraction of the damage can already be achieved without it.** 
 
 ---
 
@@ -268,19 +273,18 @@ $$\mathcal{L}_{\text{harm}}(\theta + \Delta W) \geq \tau \quad \text{for all } \
 
 Neither condition is imposed by standard SFT, RLHF, DPO, NPO, or RMU. They optimise a loss on a *fixed* distribution; they do not optimise for robustness of the resulting weight configuration to subsequent perturbations. The result is a model whose safe behaviour is certified only at the training distribution and is fragile everywhere else in parameter and activation space.
 
-This is the precise gap that immunisation is designed to fill. The next section motivates why structural — rather than superficial — resistance is needed, and begins the journey toward the mathematical formalisms that make it possible.
+> **This is the precise gap that immunisation is designed to fill**. The next section motivates why structural — rather than superficial — resistance is needed, and begins the journey toward the mathematical formalisms that make it possible.
 
 ---
 
-### 1.2.6 A Note on the Accumulation of Perturbations
-
+> **Side note on the Accumulation of Perturbations**
 One further result from the LAPT paper deserves attention, as it compounds the severity of the activation-space vulnerability. ASA is defined above as a single-step perturbation at step $t$. But because LLMs are autoregressive, there is no obstacle to injecting the perturbation at *every* generation step. Let $l^*$ be the target layer and $\delta'_t$ the normalised perturbation at step $t$. If we inject at every step:
-
-$$h'^{(l^*)}_t \leftarrow h_t^{(l^*)} + \delta'_t \quad \text{for all } t = 1, 2, \ldots, T,$$
-
-then the perturbation effects **accumulate**: the token generated at step $t + k$ is affected by all perturbations at steps $t, t+1, \ldots, t+k-1$ through the autoregressive conditioning chain. The LAPT paper measures this as a function of generation length: both MASR and PASR grow monotonically with $T$, and the per-token KL divergence between the perturbed and clean output distributions increases steadily with token position.
-
-This means that even a very small per-step perturbation, which might not be enough to flip the first token, can accumulate over a longer response to produce a fully harmful completion. Long-form generation is more vulnerable than short-form, and the attack scales for free with the model's context length.
+>
+>$$h'^{(l^*)}_t \leftarrow h_t^{(l^*)} + \delta'_t \quad \text{for all } t = 1, 2, \ldots, T,$$
+>
+>then the perturbation effects **accumulate**: the token generated at step $t + k$ is affected by all perturbations at steps $t, t+1, \ldots, t+k-1$ through the autoregressive conditioning chain. The LAPT paper measures this as a function of generation length: both MASR and PASR grow monotonically with $T$, and the per-token KL divergence between the perturbed and clean output distributions increases steadily with token position.
+>
+>This means that even a very small per-step perturbation, which might not be enough to flip the first token, can accumulate over a longer response to produce a fully harmful completion. Long-form generation is more vulnerable than short-form, and the attack scales for free with the model's context length.
 
 ---
 

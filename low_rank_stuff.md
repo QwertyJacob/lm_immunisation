@@ -79,7 +79,10 @@ They did lots of experiments with different numbers of examples for the initial 
 They  find that in all cases  $R_{\rm ft}/R_{\rm align} < 1$  (so  $R_{\rm ft} < R_{\rm align}$ ), which indicates that the proportion of *alignment energy* (the concentration of the weight update in the top-$k$ alignment singular directions)  decreases after (innocuous) fine-tuning. 
 
 
-> Furthermore, they observed a correlation between safety robustness and how much *alignment energy* is retained after fine-tuning (measured by $R_{\rm ft}/R_{\rm align}$). When looking at only a few top directions (small $k$), large drops in retained alignment energy correspond to large increases in ASR. As $k$ grows, the ratio becomes less sensitive to fine-tuning, which highlights that it's specifically the *top* alignment directions that carry the safety-critical energy — the bottom singular directions contribute little to safety robustness even if their energy shifts.
+> Furthermore, they observed a correlation between safety robustness and how much *alignment energy* is retained after fine-tuning (measured by $R_{\rm ft}/R_{\rm align}$). 
+
+
+> Another thing: when looking at only a few top directions (small $k$), large drops in retained alignment energy correspond to large increases in ASR. As $k$ grows, the ratio $R_{\rm ft}/R_{\rm align}$ (not the ASR increase!) becomes less sensitive to fine-tuning, which highlights that it's specifically the *top* alignment directions that carry the safety-critical energy — the bottom singular directions contribute little to safety robustness even if their energy shifts.
 
 The key reframing is: instead of talking about "significance of safety subspaces," we talk about the alignment energy of the weight matrix and whether fine-tuning *disperses*. A drop in $R_{\rm ft}/R_{\rm align}$ means alignment energy has been dispersed away, which correlates with safety degradation.
 
