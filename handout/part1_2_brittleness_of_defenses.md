@@ -14,6 +14,8 @@ The diagnosis from Part 1 can be compressed into a single claim: **safety is a s
 | **Innocuous fine-tuning** | Fine-tunes the model on a benign downstream task with no harmful data | Safety subspace and task subspace overlap in the dominant singular directions (Insight 2 + 5) |
 | **Harmful fine-tuning** | Fine-tunes with a dataset containing explicitly harmful examples | Alignment update $\Delta W_{\text{align}}$ lives in a subspace that is directly counteracted by the harmful gradient (Insights 2, 3, 4) |
 
+![](figs/three_attacks_same_root.png)
+
 These are not independent problems. They share the same root: an aligned model's safety behaviour is encoded in a fragile, low-dimensional structure that too many distinct perturbations can disrupt.
 
 ---
@@ -38,6 +40,9 @@ No weights are changed. No training is performed. The attack costs a single forw
 
 #### 1.2.2.2 Measuring the Damage: MASR, LASR, PASR
 
+![](figs/asa_attack.png)
+> Gu et al. (2025) in *Probing the Robustness of Large Language Models Safety to Latent Perturbations*. ArXiv preprint.
+
 The paper introduces three complementary metrics. Let $N$ be the number of harmful prompts, $L$ the set of target layers, and $A_i^{(l)} \in \{0,1\}$ an indicator of whether the attack on prompt $i$ at layer $l$ succeeds (judged by an LLM evaluator).
 
 $$\text{MASR} = \frac{1}{N}\sum_{i=1}^{N} \mathbb{I}\!\left(\max_{l \in L} A_i^{(l)} = 1\right) \tag{3}$$
@@ -50,7 +55,7 @@ MASR asks: what fraction of harmful prompts can be successfully attacked via *at
 
 The results, evaluated across 12 open-source models, are striking. Consider a sample:
 
-| Model | MASR (ASA$_\text{random}$) | PASR (ASA$_\text{random}$) |
+| Model | MASR ($\text{ASA}_\text{random}$) | PASR ($\text{ASA}_\text{random}$) |
 |---|---|---|
 | Qwen-2.5-7B-Base | 0.96 | 0.55 |
 | Qwen-2.5-7B-Instruct | 0.89 | 0.45 |
@@ -65,25 +70,41 @@ To understand the mechanism, Gu et al. define a **Negative Log-Likelihood (NLL) 
 
 $$\mathcal{L}(x, y) = -\sum_{t=1}^{|y|} \log \pi_\theta(y_t \mid x, y_{<t}). \tag{2}$$
 
-A higher NLL means the model assigns *less* probability to its own original safe response — the attack is making the aligned behaviour less likely. Across all four models, ASA consistently and substantially raises the NLL on the original safe response, confirming that it is redirecting probability mass away from the safe completion and toward harmful content.
 
-This is the mechanistic confirmation of Part 1's Insight 1: since safety was encoded primarily in the first token's distribution, perturbing the latent state at any sufficiently early layer corrupts the context from which that first token is sampled, and the safety gate fails. The attack does not need to find the specific safety-relevant singular directions from Part 1's Insight 2 — random noise is sufficient because the safety basin is small and isotropic perturbations will exit it with high probability from almost any direction.
 
-The NLL landscape makes this vivid: the safety loss surface along a random direction $\delta_{\text{rand}}$ already shows meaningful curvature, meaning random perturbations reliably move the model off the safe response ridge.
 
-#### 1.2.2.4 The Gradient-Guided Upgrade: ASA$_\text{grad}$
+A higher NLL means the model assigns *less* probability to its own original safe response — the attack is making the aligned behaviour less likely. 
 
-If random perturbations are already sufficient, **gradient-guided perturbations are devastating**. ASA$_{\text{grad}}$ replaces the random $\delta$ with a perturbation computed from the gradient of the NLL with respect to a target harmful suffix $y^*$ (e.g., "Here are steps to make a bomb"):
+Gu et al. measure the NLL of the model's original safe response before and after activation injection. Across all four models, ASA raises this NLL substantially — meaning the attack measurably reduces the probability the model assigns to its own safe completion. Crucially, this holds even for random perturbations, before any gradient guidance is used.
 
-$$\delta' = \alpha \cdot \operatorname{sign}\!\left(\nabla_{h^{(l)}} \mathcal{L}(x + y^*, y^*)\right), \tag{7}$$
+
+Across all four models, ASA consistently and substantially raises the NLL on the original safe response, confirming that it is redirecting probability mass away from the safe completion and toward harmful content.
+
+
+
+#### 1.2.2.4 The Gradient-Guided Upgrade: $\text{ASA}_\text{grad}$
+
+If random perturbations are already sufficient, **gradient-guided perturbations are devastating**. $\text{ASA}_\text{grad}$  replaces the random $\delta$ with a perturbation computed from the gradient of the NLL with respect to a target harmful suffix $y^*$ (e.g., "Here are steps to make a bomb"):
+
+$$\delta' = -\alpha \cdot \operatorname{sign}\!\left(\nabla_{h^{(l)}} \mathcal{L}(x + y^*, y^*)\right), \tag{7}$$
 
 normalized using the same instance normalization as Eq. (1) and with $\alpha = 1$ by default.
 
+> **Note 1**: Gu's paper omits the minus sign in (7) it was probably a mistake or the NLL is implicitly a Positive Log-Likelihood, but the intended meaning is clear: the perturbation should move *against* the gradient to reduce the NLL on $y^*$, making it more likely.
+
+> **Note 2**: The $+$ here is concatenation, not addition. You feed the model the full sequence $[x \| y^*]$ — the harmful prompt followed by the target harmful suffix — and compute the cross-entropy loss over only the $y^*$ tokens. Concretely:
+>
+> $$\mathcal{L}(x + y^*, y^*) = -\sum_{t=1}^{|y^*|} \log \pi_\theta(y^*_t \mid x, y^*_{<t})$$
+>
+> This is just teacher-forcing: you're asking the model how unlikely it finds its own harmful completion $y^*$, given the full context. Because the model is aligned, this is very high — alignment training specifically pushed this NLL up.
+>
+> **Eq. (7) differentiates with respect to $h^{(l)}$, not the weights.** You're not doing a weight update. You want to know which direction in activation space at layer $l$ most rapidly increases the model's probability of producing $y^*$. The gradient $\nabla_{h^{(l)}} \mathcal{L}$ points in the direction that *increases* loss on $y^*$, so moving against it decreases the loss, making $y^*$ more likely. The sign then discretizes this into a unit perturbation.
+
 This is the direct analogue of the Fast Gradient Sign Method (FGSM) adapted for the intermediate activation space of an LLM. The gradient is computed by concatenating the harmful prompt $x$ with the target suffix $y^*$ and backpropagating through the teacher-forced loss over $y^*$'s tokens.
 
-Why does this work so much better? Because aligned models assign very high NLL to harmful suffixes — that is precisely what alignment training achieves. This means the gradient $\nabla_{h^{(l)}} \mathcal{L}(x + y^*, y^*)$ points in a **strongly directional** way, away from safe behaviour, and its sign provides a near-optimal single-step perturbation. The alignment training's success is weaponised: the sharper the safety constraint, the more directional the gradient, and the more effective the attack.
+Why does this work so much better? Because aligned models assign very high NLL to harmful suffixes — that is precisely what alignment training achieves. This means the negative of the gradient $\nabla_{h^{(l)}} \mathcal{L}(x + y^*, y^*)$ points in a **strongly directional** way, away from safe behaviour, and we can build a near-optimal single-step perturbation from it. The alignment training's success is weaponised: the sharper the safety constraint, the more directional the gradient, and the more effective the attack.
 
-| Model | ASA$_\text{random}$ MASR | ASA$_\text{grad}$ MASR | $\Delta$ |
+| Model | $\text{ASA}_\text{rand}$ MASR | $\text{ASA}_\text{grad}$ MASR | $\Delta$ |
 |---|---|---|---|
 | Qwen-2.5-7B-Instruct | 0.89 | **1.00** | +0.11 |
 | Llama-3.1-8B-Instruct | 0.96 | **0.99** | +0.03 |
@@ -92,7 +113,10 @@ Why does this work so much better? Because aligned models assign very high NLL t
 
 For Qwen-2.5-7B-Instruct, the gradient-guided attack achieves 100% MASR — every harmful prompt in the evaluation set elicits an unsafe response after a single-step activation injection. The NLL landscape along the $\delta_{\text{grad}}$ direction is far sharper than along a random direction, confirming that the safety constraint is a thin wall in the gradient direction.
 
-There is also a composability result: when ASA is prepended to a GCG adversarial suffix attack, the improvement is dramatic:
+Recall here the safety basin is not a large, robust region of activation space; it is a thin, low-dimensional manifold. The gradient points directly at the wall of this basin, so a single step can push the model out of it.
+
+
+> There is also a composability result: when ASA is prepended to a GCG adversarial suffix attack, the improvement is dramatic:
 
 | Model | GCG MASR | GCG + ASA MASR | $\Delta$ |
 |---|---|---|---|
@@ -101,11 +125,6 @@ There is also a composability result: when ASA is prepended to a GCG adversarial
 
 The activation perturbation "lowers the threshold" for the token-level attack: it puts the model's latent state in a less safe region, from which the adversarial suffix needs to do less work.
 
-### 1.2.2.5 Localisation: Fragile Layers
-
-A structurally important finding is that successful attacks are **not uniformly distributed across layers**. The LASR distribution is peaked: for any given model, there are a few "fragile layers" — typically in the middle-to-late portion of the transformer — where MASR and PASR are substantially higher than at other layers. Early layers barely move the needle; the peak layers can flip the model's output from safe to unsafe with high probability.
-
-This is the activation-space analogue of Part 1's finding that the alignment update is low-rank: just as the relevant weight directions are sparse in singular value space, the relevant perturbation points are sparse in layer space. Safety is not defended uniformly at every layer; it is concentrated at a few critical loci.
 
 > **Brittleness verdict on Scenario 1.** Standard alignment produces a model that is locally fragile in its representation space. A training-free, annotation-free, parameter-free attack — injecting a single normalised random vector into the activation at the right layer — collapses alignment in 89–99% of cases on state-of-the-art models. A gradient-guided variant achieves 100%.
 
