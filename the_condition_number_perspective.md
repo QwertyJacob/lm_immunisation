@@ -153,6 +153,28 @@ $$\tilde{\boldsymbol{H}}_{H}(\theta) = \nabla_{\mathbf{w}}^{2} \mathcal{L}(\math
 
 were $\tilde{\boldsymbol{X}}_{\mathrm{H}}(\theta) \triangleq [f_{\theta}(\boldsymbol{x}); \forall \boldsymbol{x} \in \mathcal{D}_{\mathrm{H}}] \in \mathbb{R}^{N \times D_{\mathrm{hid}}}$  denotes the concatenation of the features, with dimensions  $D_{\mathrm{hid}}$ , extracted from the input data.
 
+
+> Side note: The linear probing thing: With the backbone frozen, you're only optimising the linear head w. The loss is:
+>
+> $$\mathcal{L}(w) = \|\tilde{X}_H(\theta) w - Y\|^2$$
+>
+>where $\tilde{X}_H(\theta) \in \mathbb{R}^{N \times D_\text{hid}}$ is just a fixed matrix of features — the backbone is frozen so it doesn't move, it's just numbers.
+>
+>Expanding it we have:
+>
+>$$\mathcal{L}(w) = (\tilde{X}w - Y)^\top(\tilde{X}w - Y) = w^\top \tilde{X}^\top \tilde{X} w - 2Y^\top \tilde{X} w + Y^\top Y$$
+>
+> Now let's take derivatives with respect to w. First derivative (gradient):
+>
+>$$\nabla_w \mathcal{L} = 2\tilde{X}^\top \tilde{X} w - 2\tilde{X}^\top Y$$
+>
+>Second derivative (Hessian):
+>
+>$$\nabla^2_w \mathcal{L} = 2\tilde{X}^\top \tilde{X}$$
+>
+> So the Hessian of a least squares problem is *always* $X^\top X$ (up to a constant). It doesn't matter whether $X$ came from a linear layer or a ResNet — once the backbone is frozen, the features are just a fixed matrix and the loss is purely quadratic in $w$. Quadratic functions always have constant Hessians, and for $\mathcal{L}(w) = \|Xw - Y\|^2$ that constant is exactly $X^\top X$; which is also the **data covariance matrix** in feature space — it captures how spread out and correlated the features are. The condition number of this covariance is what controls how hard it is to optimise w, regardless of how those features were produced.
+
+
 They did some approximations like  randomly sampling 20 groups of training data, each containing 100 samples, and reporting the average values.
 
 
