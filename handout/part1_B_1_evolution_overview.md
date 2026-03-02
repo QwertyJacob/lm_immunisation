@@ -1,9 +1,6 @@
 # Part 1.B.1 — The Evolution of "Make Harmful Fine-Tuning Difficult"
 
-> **Session:** Morning · Block B · 10 minutes  
-> **Role of this segment:** Orient students in the historical arc *before* we go mechanistic in 1.B.2. No equations here — just the conceptual storyline and the cast of characters.
 
----
 
 ## The Central Bet
 

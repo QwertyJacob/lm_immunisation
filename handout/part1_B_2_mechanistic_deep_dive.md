@@ -1,9 +1,5 @@
 # Part 1.B.2 — Mechanistic Deep Dive: How "Make HFT Difficult" Actually Works
 
-> **Session:** Morning · Block B · ~15 minutes  
-> **Role of this segment:** Stop telling the story. Start dissecting the machines. Three mechanistic families, same immune goal — different levers pulled. Equations are explained before they are written, and again after.
-
----
 
 ## The Shared Engineering Tension
 

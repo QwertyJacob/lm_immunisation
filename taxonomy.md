@@ -24,18 +24,18 @@ The common thread: **the attacker can try to fine-tune, and the model will passi
 | # | Paper |
 |---|-------|
 | 1 | Non-Transferable Learning (NTL) |
-| 2 | Self-Destructing Models (MLAC) |
+| 2 | [Self-Destructing Models (MLAC)](https://arxiv.org/pdf/2211.14946) |
 | 3 | CTRL |
 | 4 | Vaccine |
 | 5 | Circuit Breakers |
 | 7 | [E.T.](https://www.techrxiv.org/users/925680/articles/1301297-ethical-treatment-of-language-models-against-harmful-inference-time-interventions) / [LAPT](https://arxiv.org/pdf/2506.16078)|
-| 8 | TAR |
-| 9 | Booster |
+| 8 | [TAR](https://arxiv.org/pdf/2408.00761)|
+| 9 | [Booster](https://arxiv.org/pdf/2409.01586) |
 | 10 | [LoX](https://arxiv.org/pdf/2506.15606) |
-| 11 | [VAA](https://arxiv.org/pdf/2506.03850) |
+| 11 | VAA |
 | 12 | ILU |
 | 13 | [Condition Number](https://arxiv.org/pdf/2505.23760) |
-| 17 | Targeted Vaccine |
+| 17 | [Targeted Vaccine](https://arxiv.org/pdf/2410.09760) |
 | 19 | [AntiDote](https://arxiv.org/pdf/2509.08000) |
 
 
@@ -54,9 +54,9 @@ The common thread: **the attacker may succeed in removing the safety guardrails,
 | # | Paper |
 |---|-------|
 | 14 | [CTRAP](https://arxiv.org/pdf/2505.16559) |
-| 15 | [SEAM] (https://arxiv.org/pdf/2505.12186) |
-| 18 | [SDD](https://arxiv.org/pdf/2507.21182) |
-| 20 | Token Buncher |
+| 15 | SEAM |
+| 18 | SDD |
+| 20 | [Token Buncher](https://arxiv.org/pdf/2508.20697)|
 
 
 ### A side note on paper 2 (Self-Destructing Models):
