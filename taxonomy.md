@@ -25,9 +25,9 @@ The common thread: **the attacker can try to fine-tune, and the model will passi
 |---|-------|
 | 1 | Non-Transferable Learning (NTL) |
 | 2 | [Self-Destructing Models (MLAC)](https://arxiv.org/pdf/2211.14946) |
-| 3 | CTRL |
+| 3 | [CTRL](https://arxiv.org/pdf/2405.19358) |
 | 4 | Vaccine |
-| 5 | Circuit Breakers |
+| 5 | [Circuit Breakers](https://arxiv.org/pdf/2406.04313v2) |
 | 7 | [E.T.](https://www.techrxiv.org/users/925680/articles/1301297-ethical-treatment-of-language-models-against-harmful-inference-time-interventions) / [LAPT](https://arxiv.org/pdf/2506.16078)|
 | 8 | [TAR](https://arxiv.org/pdf/2408.00761)|
 | 9 | [Booster](https://arxiv.org/pdf/2409.01586) |
@@ -54,7 +54,7 @@ The common thread: **the attacker may succeed in removing the safety guardrails,
 | # | Paper |
 |---|-------|
 | 14 | [CTRAP](https://arxiv.org/pdf/2505.16559) |
-| 15 | SEAM |
+| 15 | [SEAM](https://arxiv.org/pdf/2505.12186) |
 | 18 | SDD |
 | 20 | [Token Buncher](https://arxiv.org/pdf/2508.20697)|
 
