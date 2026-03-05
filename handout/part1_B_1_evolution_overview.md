@@ -37,6 +37,8 @@ MLAC                                                                   LoX
          └─── LoX (extrapolate safety subspace, no training needed)
 ```
 
+![](figs/first_group_overview.png)
+
 *Three families, one philosophy. Let's walk the arc.*
 
 ---
