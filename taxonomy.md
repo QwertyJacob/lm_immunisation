@@ -32,8 +32,8 @@ The common thread: **the attacker can try to fine-tune, and the model will passi
 | 8 | [TAR](https://arxiv.org/pdf/2408.00761)|
 | 9 | [Booster](https://arxiv.org/pdf/2409.01586) |
 | 10 | [LoX](https://arxiv.org/pdf/2506.15606) |
-| 11 | VAA |
-| 12 | ILU |
+| 11 | [VAA](https://arxiv.org/pdf/2506.03850) |
+| 12 | [ILU](https://arxiv.org/pdf/2506.01339) |
 | 13 | [Condition Number](https://arxiv.org/pdf/2505.23760) |
 | 17 | [Targeted Vaccine](https://arxiv.org/pdf/2410.09760) |
 | 19 | [AntiDote](https://arxiv.org/pdf/2509.08000) |
@@ -55,7 +55,7 @@ The common thread: **the attacker may succeed in removing the safety guardrails,
 |---|-------|
 | 14 | [CTRAP](https://arxiv.org/pdf/2505.16559) |
 | 15 | [SEAM](https://arxiv.org/pdf/2505.12186) |
-| 18 | SDD |
+| 18 | [SDD](https://arxiv.org/pdf/2507.21182) |
 | 20 | [Token Buncher](https://arxiv.org/pdf/2508.20697)|
 
 
