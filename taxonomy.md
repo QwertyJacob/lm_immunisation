@@ -28,7 +28,7 @@ The common thread: **the attacker can try to fine-tune, and the model will passi
 | 3 | [CTRL](https://arxiv.org/pdf/2405.19358) |
 | 4 | Vaccine |
 | 5 | [Circuit Breakers](https://arxiv.org/pdf/2406.04313v2) |
-| 7 | [E.T.](https://www.techrxiv.org/users/925680/articles/1301297-ethical-treatment-of-language-models-against-harmful-inference-time-interventions) / [LAPT](https://arxiv.org/pdf/2506.16078)|
+| 7 | [E.T.](https://www.sciencedirect.com/science/article/pii/S0952197626005981) / [LAPT](https://arxiv.org/pdf/2506.16078)|
 | 8 | [TAR](https://arxiv.org/pdf/2408.00761)|
 | 9 | [Booster](https://arxiv.org/pdf/2409.01586) |
 | 10 | [LoX](https://arxiv.org/pdf/2506.15606) |
